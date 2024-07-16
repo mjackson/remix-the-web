@@ -8,5 +8,6 @@
     "moduleResolution": "NodeNext",
     "strict": true,
     "verbatimModuleSyntax": true,
+    "noEmit": true
   },
 }

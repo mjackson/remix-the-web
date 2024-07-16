@@ -19,7 +19,7 @@
   },
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts",
-    "test": "node --import tsimp/import --test ./src/**/*.spec.ts && attw --pack .",
+    "test": "tsc && node --import tsimp/import --test ./src/**/*.spec.ts && attw --pack .",
     "prepare": "pnpm run build",
     "prepublishOnly": "pnpm run test"
   },
