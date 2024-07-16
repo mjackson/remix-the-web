@@ -1,4 +1,4 @@
-import { HeaderValue } from './header-value.js';
+import type { HeaderValue } from './header-value.js';
 import { parseParams, quote } from './param-values.js';
 import { capitalize, isValidDate } from './utils.js';
 

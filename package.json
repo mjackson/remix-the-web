@@ -4,31 +4,30 @@
   "description": "A drop-in replacement for JavaScript Headers with type-safe access",
   "author": "Michael Jackson <mjijackson@gmail.com>",
   "license": "MIT",
+  "type": "module",
   "files": [
     "dist",
     "README.md"
   ],
+  "main": "./dist/index.js",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "default": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     },
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "pnpm run build:cjs && pnpm run build:esm",
-    "build:cjs": "tsc --outDir dist --project tsconfig.lib.json",
-    "build:esm": "esbuild src/index.ts --bundle --format=esm --target=node16 --outfile=dist/index.mjs",
-    "test": "node --import tsimp/import --test ./src/**/*.spec.ts",
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "test": "node --import tsimp/import --test ./src/**/*.spec.ts && attw --pack .",
     "prepare": "pnpm run build",
     "prepublishOnly": "pnpm run test"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.15.3",
     "@types/node": "^20.14.10",
-    "esbuild": "^0.23.0",
     "tsimp": "^2.0.11",
+    "tsup": "^8.1.0",
     "typescript": "^5.5.3"
   }
 }

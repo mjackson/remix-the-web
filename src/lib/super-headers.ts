@@ -2,7 +2,7 @@ import { ContentDisposition } from './content-disposition.js';
 import { ContentType } from './content-type.js';
 import { Cookie } from './cookie.js';
 import { canonicalHeaderName } from './header-names.js';
-import { HeaderValue } from './header-value.js';
+import type { HeaderValue } from './header-value.js';
 import { SetCookie } from './set-cookie.js';
 import { isValidDate } from './utils.js';
 
