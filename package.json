@@ -4,6 +4,7 @@
   "description": "An enhanced JavaScript Headers interface type-safe access",
   "author": "Michael Jackson <mjijackson@gmail.com>",
   "license": "MIT",
+  "repository": "github:mjackson/fetch-super-headers",
   "files": [
     "dist",
     "LICENSE",
