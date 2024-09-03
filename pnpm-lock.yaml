@@ -28,6 +28,19 @@ importers:
         specifier: ^8.3.5
         version: 8.3.5(@swc/core@1.5.29(@swc/helpers@0.5.12))(typescript@5.7.2)
 
+  packages/fetch-router:
+    dependencies:
+      '@mjackson/lazy-file':
+        specifier: workspace:*
+        version: link:../lazy-file
+    devDependencies:
+      '@types/node':
+        specifier: ^22.5.0
+        version: 22.5.0
+      ts-toolbelt:
+        specifier: ^9.6.0
+        version: 9.6.0
+
   packages/file-storage:
     dependencies:
       '@mjackson/lazy-file':
@@ -1758,6 +1771,9 @@ packages:
   ts-interface-checker@0.1.13:
     resolution: {integrity: sha512-Y/arvbn+rrz3JCKl9C4kVNfTfSm2/mEp5FSz5EsZSANGPSlQrpRI5M4PKF+mJnE52jOO90PnPSc3Ur3bTQw0gA==}
 
+  ts-toolbelt@9.6.0:
+    resolution: {integrity: sha512-nsZd8ZeNUzukXPlJmTBwUAuABDe/9qtVDelJeT/qW0ow3ZS3BsQJtNkan1802aM9Uf68/Y8ljw86Hu0h5IUW3w==}
+
   tslib@2.7.0:
     resolution: {integrity: sha512-gLXCKdN1/j47AiHiOkJN69hJmcbGTHI0ImLmbYLHykhgeN0jVGola9yVjFgzCUklsZQMW55o+dW7IXv3RCXDzA==}
 
@@ -3225,6 +3241,8 @@ snapshots:
   tree-kill@1.2.2: {}
 
   ts-interface-checker@0.1.13: {}
+
+  ts-toolbelt@9.6.0: {}
 
   tslib@2.7.0: {}
 

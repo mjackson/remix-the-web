@@ -1,0 +1,42 @@
+{
+  "name": "@mjackson/fetch-router",
+  "version": "0.0.0",
+  "description": "",
+  "author": "Michael Jackson <mjijackson@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mjackson/remix-the-web.git",
+    "directory": "packages/fetch-router"
+  },
+  "license": "MIT",
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./dist/fetch-router.js",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@mjackson/lazy-file": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.0",
+    "ts-toolbelt": "^9.6.0"
+  },
+  "scripts": {
+    "build": "tsc --outDir dist --project tsconfig.lib.json",
+    "test": "node --import @swc-node/register/esm-register --test ./src/**/*.spec.ts",
+    "prepare": "pnpm run build"
+  },
+  "keywords": [
+    "fetch",
+    "router",
+    "middleware"
+  ],
+  "nx": {
+    "name": "fetch-router"
+  }
+}
