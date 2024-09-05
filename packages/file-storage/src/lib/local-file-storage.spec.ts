@@ -1,5 +1,5 @@
 import * as assert from 'node:assert/strict';
-import { after, describe, it } from 'node:test';
+import { afterAll, describe, it } from "vitest";
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -10,7 +10,7 @@ const __dirname = new URL('.', import.meta.url).pathname;
 describe('LocalFileStorage', () => {
   let directory = path.resolve(__dirname, '../../test-local-file-storage');
 
-  after(() => {
+  afterAll(() => {
     fs.rmSync(directory, { recursive: true });
   });
 

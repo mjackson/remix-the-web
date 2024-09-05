@@ -17,6 +17,7 @@
   "type": "module",
   "exports": {
     ".": "./dist/file-storage.js",
+    "./aws": "./dist/aws.js",
     "./local": "./dist/local.js",
     "./memory": "./dist/memory.js",
     "./package.json": "./package.json"
@@ -25,11 +26,12 @@
     "@mjackson/lazy-file": "^3.1.0"
   },
   "devDependencies": {
-    "@types/node": "^20.14.10"
+    "@types/node": "^20.14.10",
+    "vitest": "^2.0.5"
   },
   "scripts": {
     "build": "tsc --outDir dist --project tsconfig.lib.json",
-    "test": "node --import @swc-node/register/esm-register --test ./src/**/*.spec.ts",
+    "test": "vitest run",
     "prepare": "pnpm run build"
   },
   "keywords": [
@@ -37,5 +39,9 @@
     "storage",
     "stream",
     "fs"
-  ]
+  ],
+  "optionalDependencies": {
+    "@aws-sdk/client-s3": "^3.645.0",
+    "@aws-sdk/lib-storage": "^3.645.0"
+  }
 }
