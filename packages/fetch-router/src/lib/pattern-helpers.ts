@@ -155,6 +155,62 @@ export function normalizeSearch(search: string): string {
 }
 //#endregion
 
+//#region JOIN helpers
+export type Join<E extends string, A extends string> = Join_<
+  JoinProtocol<ExtractProtocol<E>, ExtractProtocol<A>>,
+  JoinHostname<ExtractHostname<E>, ExtractHostname<A>>,
+  JoinPathname<ExtractPathname<E>, ExtractPathname<A>>,
+  JoinSearch<ExtractSearch<E>, ExtractSearch<A>>
+>;
+
+// prettier-ignore
+type Join_<
+  Protocol extends string,
+  Hostname extends string,
+  Pathname extends string,
+  Search extends string,
+> = Hostname extends '' ? `${Pathname}${Search}` :
+    Protocol extends '' ? `https://${Hostname}${Pathname}${Search}` :
+    `${Protocol}//${Hostname}${Pathname}${Search}`
+
+export type JoinProtocol<E extends string, A extends string> = A extends `` ? E : A;
+
+export function joinProtocol(existingProtocol: string, additionalProtocol: string): string {
+  return additionalProtocol || existingProtocol;
+}
+
+export type JoinHostname<E extends string, A extends string> = A extends `` ? E : A;
+
+export function joinHostname(existingHostname: string, additionalHostname: string): string {
+  return additionalHostname || existingHostname;
+}
+
+// prettier-ignore
+export type JoinPathname<E extends string, A extends string> =
+  A extends '/' ? E :
+	E extends `${infer L}/` ? `${L}${A}` :
+	`${E}${A}`
+
+export function joinPathname(existingPathname: string, additionalPathname: string): string {
+  // prettier-ignore
+  return (
+		additionalPathname === '/' ? existingPathname :
+		// Strip trailing slash from parent pathname before appending child pathname.
+		existingPathname.endsWith('/') ? existingPathname.slice(0, -1) + additionalPathname :
+		existingPathname + additionalPathname
+	)
+}
+
+// prettier-ignore
+export type JoinSearch<E extends string, A extends string> =
+	SearchString<[...SearchPairs<E>, ...SearchPairs<A>]>
+
+export function joinSearch(existingSearch: string, additionalSearch: string): string {
+  return searchString([...searchPairs(existingSearch), ...searchPairs(additionalSearch)]);
+}
+//#endregion
+
+//#region SEARCH helpers
 // prettier-ignore
 type SearchPairs<T extends string> =
 	T extends `` ? [] :
@@ -190,7 +246,8 @@ type SearchPairsString<T extends SearchPair[]> =
 
 type SearchPairString<T extends string[]> = T[1] extends '' ? T[0] : String.Join<T, '='>;
 
-function searchString(pairs: string[][]) {
+function searchString(pairs: SearchPair[]) {
   let str = pairs.map((pair) => (pair[1] === '' ? pair[0] : pair.join('='))).join('&');
   return str === '' ? '' : `?${str}`;
 }
+//#endregion

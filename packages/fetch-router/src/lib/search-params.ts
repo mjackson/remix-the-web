@@ -1,6 +1,6 @@
 import { ParamsInit, Params } from './params.js';
 import { SearchParamName } from './params-helpers.js';
-import { normalizeSearch } from './route-pattern-helpers.js';
+import { normalizeSearch } from './pattern-helpers.js';
 
 export type SearchParamsInit<T extends string = string> = ParamsInit<T>;
 

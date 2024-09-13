@@ -1,4 +1,5 @@
 import { DynamicImport, resolveDynamicImport } from './dynamic-import.js';
+import { Middleware } from './middleware.js';
 import { Params } from './params.js';
 import {
   RequiredHostnameParamName,
@@ -7,21 +8,9 @@ import {
   OptionalPathnameParamName,
   SearchParamName,
 } from './params-helpers.js';
-import { ExtractHostname, ExtractPathname, ExtractSearch } from './route-pattern-helpers.js';
+import { Renderer } from './renderer.js';
+import { ExtractHostname, ExtractPathname, ExtractSearch } from './pattern-helpers.js';
 import { SearchParams } from './search-params.js';
-
-export interface RouteMatch<T extends string> {
-  params: Params<
-    RequiredHostnameParamName<ExtractHostname<T>> | RequiredPathnameParamName<ExtractPathname<T>>,
-    OptionalHostnameParamName<ExtractHostname<T>> | OptionalPathnameParamName<ExtractPathname<T>>
-  >;
-
-  searchParams: SearchParams<SearchParamName<ExtractSearch<T>>>;
-}
-
-export interface RouteHandler<T extends string, R = Response> {
-  (match: RouteMatch<T>): R | Promise<R>;
-}
 
 export class RoutePattern<T extends string> {
   readonly source: T;
@@ -48,23 +37,98 @@ export class RoutePattern<T extends string> {
   }
 }
 
-export interface Route<T extends string, R = Response> {
-  pattern: RoutePattern<T>;
-  handler: RouteHandler<T, R>;
+export interface RouteMatch<P extends string> {
+  params: Params<
+    RequiredHostnameParamName<ExtractHostname<P>> | RequiredPathnameParamName<ExtractPathname<P>>,
+    OptionalHostnameParamName<ExtractHostname<P>> | OptionalPathnameParamName<ExtractPathname<P>>
+  >;
+
+  searchParams: SearchParams<SearchParamName<ExtractSearch<P>>>;
 }
 
-export function createRoute<T extends string, R>(
-  pattern: RoutePattern<T> | T,
-  handler: RouteHandler<T, R> | DynamicImport<RouteHandler<T, R>>,
-): Route<T, R> {
+export interface RouteHandler<P extends string, R> {
+  (match: RouteMatch<P>): R | Promise<R>;
+}
+
+export function createRoutes<const R extends AnyRoute<Response>[]>(routes: R): R {
+  return routes;
+}
+
+export type AnyRoute<T> =
+  | MiddlewareRoute<T>
+  | PrefixRoute<string, T>
+  | RenderRoute<any>
+  | Route<string, T>;
+
+export interface Route<P extends string, T> {
+  pattern: P;
+  handler: RouteHandler<P, T>;
+}
+
+export function route<P extends string, T>(
+  pattern: P,
+  handler: RouteHandler<P, T> | DynamicImport<RouteHandler<P, T>>,
+): Route<P, T> {
   return {
-    pattern: typeof pattern === 'string' ? new RoutePattern(pattern) : pattern,
+    pattern,
     handler:
       typeof handler === 'function'
         ? handler
         : async function (match) {
-            let resolvedHandler = await resolveDynamicImport(handler);
-            return resolvedHandler(match);
+            let resolved = await resolveDynamicImport(handler);
+            return resolved(match);
           },
   };
+}
+
+export function lazy<P extends string, T>(
+  pattern: P,
+  handler: () => DynamicImport<RouteHandler<P, T>>,
+): Route<P, T> {
+  return {
+    pattern,
+    async handler(match) {
+      let resolved = await resolveDynamicImport(handler());
+      return resolved(match);
+    },
+  };
+}
+
+export interface MiddlewareRoute<T> {
+  middleware: Middleware[];
+  routes: AnyRoute<T>[];
+}
+
+export interface PrefixRoute<P extends string, T> {
+  pattern: P;
+  routes: AnyRoute<T>[];
+}
+
+export interface RenderRoute<T> {
+  renderer: Renderer<T>;
+  routes: AnyRoute<T>[];
+}
+
+export function use<T, const R extends AnyRoute<T>[]>(
+  middleware: Middleware | Middleware[],
+  routes?: R,
+): MiddlewareRoute<T>;
+export function use<P extends string, T, const R extends AnyRoute<T>[]>(
+  pattern: P,
+  routes: R,
+): PrefixRoute<P, T>;
+export function use<T, const R extends AnyRoute<T>[]>(
+  renderer: Renderer<T>,
+  routes: R,
+): RenderRoute<T>;
+export function use(arg: Middleware | Middleware[] | string | Renderer<any>, routes?: any) {
+  if (typeof arg === 'function') {
+    return { middleware: [arg], routes };
+  } else if (Array.isArray(arg)) {
+    return { middleware: arg, routes };
+  } else if (typeof arg === 'string') {
+    return { pattern: arg, routes };
+  } else {
+    return { renderer: arg, routes };
+  }
 }

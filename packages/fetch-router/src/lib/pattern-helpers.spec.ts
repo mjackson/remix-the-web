@@ -20,7 +20,16 @@ import {
   normalizePathname,
   NormalizeSearch,
   normalizeSearch,
-} from './route-pattern-helpers.js';
+  Join,
+  JoinProtocol,
+  joinProtocol,
+  JoinHostname,
+  joinHostname,
+  JoinPathname,
+  joinPathname,
+  JoinSearch,
+  joinSearch,
+} from './pattern-helpers.js';
 
 //#region EXTRACT specs
 type ExtractProtocolSpec = [
@@ -337,6 +346,95 @@ describe('normalizeSearch', () => {
     assert.equal(normalizeSearch('??q='), '?q');
     assert.equal(normalizeSearch('?q=remix'), '?q=remix');
     assert.equal(normalizeSearch('?q=remix&rocks'), '?q=remix&rocks');
+  });
+});
+//#endregion
+
+//#region JOIN specs
+type JoinSpec = [Assert<Equal<Join<'', ''>, ''>>];
+
+type JoinProtocolSpec = [
+  Assert<Equal<JoinProtocol<'', ''>, ''>>,
+  Assert<Equal<JoinProtocol<'', 'http:'>, 'http:'>>,
+  Assert<Equal<JoinProtocol<'http:', ''>, 'http:'>>,
+  Assert<Equal<JoinProtocol<'http:', 'http:'>, 'http:'>>,
+  Assert<Equal<JoinProtocol<'http:', 'https:'>, 'https:'>>,
+];
+
+describe('joinProtocol', () => {
+  it('joins two protocols', () => {
+    assert.equal(joinProtocol('', ''), '');
+    assert.equal(joinProtocol('', 'http:'), 'http:');
+    assert.equal(joinProtocol('http:', ''), 'http:');
+    assert.equal(joinProtocol('http:', 'http:'), 'http:');
+    assert.equal(joinProtocol('http:', 'https:'), 'https:');
+  });
+});
+
+type JoinHostnameSpec = [
+  Assert<Equal<JoinHostname<'', ''>, ''>>,
+  Assert<Equal<JoinHostname<'localhost', ''>, 'localhost'>>,
+  Assert<Equal<JoinHostname<'remix.run', ''>, 'remix.run'>>,
+  Assert<Equal<JoinHostname<'remix.run', 'shopify.com'>, 'shopify.com'>>,
+];
+
+describe('joinHostname', () => {
+  it('joins two hostnames', () => {
+    assert.equal(joinHostname('', ''), '');
+    assert.equal(joinHostname('localhost', ''), 'localhost');
+    assert.equal(joinHostname('remix.run', ''), 'remix.run');
+    assert.equal(joinHostname('remix.run', 'shopify.com'), 'shopify.com');
+  });
+});
+
+type JoinPathnameSpec = [
+  Assert<Equal<JoinPathname<'/', '/'>, '/'>>,
+  Assert<Equal<JoinPathname<'/', '//'>, '//'>>,
+  Assert<Equal<JoinPathname<'//', '/'>, '//'>>,
+  Assert<Equal<JoinPathname<'/', '/a'>, '/a'>>,
+  Assert<Equal<JoinPathname<'/', '/a/b'>, '/a/b'>>,
+  Assert<Equal<JoinPathname<'/a', '/'>, '/a'>>,
+  Assert<Equal<JoinPathname<'/a/', '/'>, '/a/'>>,
+  Assert<Equal<JoinPathname<'/a/b', '/'>, '/a/b'>>,
+];
+
+describe('joinPathname', () => {
+  it('joins two pathnames', () => {
+    assert.equal(joinPathname('/', '/'), '/');
+    assert.equal(joinPathname('/', '//'), '//');
+    assert.equal(joinPathname('//', '/'), '//');
+    assert.equal(joinPathname('/', '/a'), '/a');
+    assert.equal(joinPathname('/', '/a/b'), '/a/b');
+    assert.equal(joinPathname('/a', '/'), '/a');
+    assert.equal(joinPathname('/a/', '/'), '/a/');
+    assert.equal(joinPathname('/a/b', '/'), '/a/b');
+  });
+});
+
+type JoinSearchSpec = [
+  Assert<Equal<JoinSearch<'', ''>, ''>>,
+  Assert<Equal<JoinSearch<'', '?q'>, '?q'>>,
+  Assert<Equal<JoinSearch<'?q', ''>, '?q'>>,
+  Assert<Equal<JoinSearch<'?q', '?q'>, '?q&q'>>,
+  Assert<Equal<JoinSearch<'?brand', '?brand=adidas'>, '?brand&brand=adidas'>>,
+  Assert<Equal<JoinSearch<'?brand=nike', '?brand=adidas'>, '?brand=nike&brand=adidas'>>,
+  Assert<
+    Equal<JoinSearch<'?brand=nike&sort=asc', '?brand=adidas'>, '?brand=nike&sort=asc&brand=adidas'>
+  >,
+];
+
+describe('joinSearch', () => {
+  it('joins two search strings', () => {
+    assert.equal(joinSearch('', ''), '');
+    assert.equal(joinSearch('', '?q'), '?q');
+    assert.equal(joinSearch('?q', ''), '?q');
+    assert.equal(joinSearch('?q', '?q'), '?q&q');
+    assert.equal(joinSearch('?brand', '?brand=adidas'), '?brand&brand=adidas');
+    assert.equal(joinSearch('?brand=nike', '?brand=adidas'), '?brand=nike&brand=adidas');
+    assert.equal(
+      joinSearch('?brand=nike&sort=asc', '?brand=adidas'),
+      '?brand=nike&sort=asc&brand=adidas',
+    );
   });
 });
 //#endregion
