@@ -26,10 +26,18 @@ interface StaticMiddlewareOptions {
  * @param options Options to configure the middleware.
  */
 export function staticMiddleware(rootDir: string, options?: StaticMiddlewareOptions): Middleware {
-  let stats = fs.statSync(rootDir);
+  try {
+    let stats = fs.statSync(rootDir);
 
-  if (!stats.isDirectory()) {
-    throw new Error(`The root directory "${rootDir}" does not exist or is not a directory.`);
+    if (!stats.isDirectory()) {
+      throw new Error(`The path "${rootDir}" is not a directory`);
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new Error(`The directory "${rootDir}" does not exist`);
+    }
+
+    throw error;
   }
 
   let immutable = options?.immutable ?? false;
