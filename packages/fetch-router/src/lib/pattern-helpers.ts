@@ -105,6 +105,13 @@ export function extractSearch(input: string): string {
 //#endregion
 
 //#region NORMALIZE helpers
+export type NormalizePattern<T extends string> = Join_<
+  NormalizeProtocol<ExtractProtocol<T>>,
+  NormalizeHostname<ExtractHostname<T>>,
+  NormalizePathname<ExtractPathname<T>>,
+  NormalizeSearch<ExtractSearch<T>>
+>;
+
 // prettier-ignore
 export type NormalizeProtocol<T extends string> =
 	Lowercase<T extends `` ? `` : T extends `${string}:` ? T : `${T}:`>
@@ -126,10 +133,10 @@ export type NormalizePathname<T extends string> =
 	`/${T}` // TODO: normalize .. and . segments
 
 export function normalizePathname(pathname: string): string {
-  let rawSegments = pathname.split('/');
+  let split = pathname.split('/');
 
   let segments: string[] = [];
-  for (let segment of rawSegments) {
+  for (let segment of split) {
     if (segment === '..') {
       segments.pop();
     } else if (segment !== '.') {
@@ -156,7 +163,7 @@ export function normalizeSearch(search: string): string {
 //#endregion
 
 //#region JOIN helpers
-export type Join<E extends string, A extends string> = Join_<
+export type JoinPattern<E extends string, A extends string> = Join_<
   JoinProtocol<ExtractProtocol<E>, ExtractProtocol<A>>,
   JoinHostname<ExtractHostname<E>, ExtractHostname<A>>,
   JoinPathname<ExtractPathname<E>, ExtractPathname<A>>,
