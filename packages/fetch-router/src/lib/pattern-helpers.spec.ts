@@ -20,7 +20,7 @@ import {
   normalizePathname,
   NormalizeSearch,
   normalizeSearch,
-  Join,
+  JoinPattern,
   JoinProtocol,
   joinProtocol,
   JoinHostname,
@@ -351,7 +351,12 @@ describe('normalizeSearch', () => {
 //#endregion
 
 //#region JOIN specs
-type JoinSpec = [Assert<Equal<Join<'', ''>, ''>>];
+type JoinPatternSpec = [
+  Assert<Equal<JoinPattern<'', ''>, ''>>,
+  Assert<Equal<JoinPattern<'http://remix.run', ''>, 'http://remix.run'>>,
+  Assert<Equal<JoinPattern<'', 'http://remix.run'>, 'http://remix.run'>>,
+  Assert<Equal<JoinPattern<'/a', '/b'>, '/a/b'>>,
+];
 
 type JoinProtocolSpec = [
   Assert<Equal<JoinProtocol<'', ''>, ''>>,

@@ -12,31 +12,6 @@ import { Renderer } from './renderer.js';
 import { ExtractHostname, ExtractPathname, ExtractSearch } from './pattern-helpers.js';
 import { SearchParams } from './search-params.js';
 
-export class RoutePattern<T extends string> {
-  readonly source: T;
-
-  constructor(source: T) {
-    this.source = source;
-  }
-
-  match(url: URL): RouteMatch<T> | null {
-    let params = new Params();
-    let searchParams = new SearchParams();
-    return {
-      params,
-      searchParams,
-    };
-  }
-
-  test(url: URL): boolean {
-    return this.match(url) !== null;
-  }
-
-  toString(): string {
-    return this.source;
-  }
-}
-
 export interface RouteMatch<P extends string> {
   params: Params<
     RequiredHostnameParamName<ExtractHostname<P>> | RequiredPathnameParamName<ExtractPathname<P>>,
@@ -55,30 +30,46 @@ export function createRoutes<const R extends AnyRoute<Response>[]>(routes: R): R
 }
 
 export type AnyRoute<T> =
-  | MiddlewareRoute<T>
+  | Route<string, T>
   | PrefixRoute<string, T>
-  | RenderRoute<any>
-  | Route<string, T>;
+  | MiddlewareRoute<T>
+  | RenderRoute<any>;
 
 export interface Route<P extends string, T> {
   pattern: P;
   handler: RouteHandler<P, T>;
 }
 
+export interface PrefixRoute<P extends string, T> {
+  pattern: P;
+  routes: AnyRoute<T>[];
+}
+
 export function route<P extends string, T>(
   pattern: P,
   handler: RouteHandler<P, T> | DynamicImport<RouteHandler<P, T>>,
-): Route<P, T> {
-  return {
-    pattern,
-    handler:
-      typeof handler === 'function'
-        ? handler
-        : async function (match) {
-            let resolved = await resolveDynamicImport(handler);
-            return resolved(match);
-          },
-  };
+): Route<P, T>;
+export function route<P extends string, T, const R extends AnyRoute<T>[]>(
+  pattern: P,
+  routes: R,
+): PrefixRoute<P, T>;
+export function route<P extends string, T>(
+  pattern: P,
+  arg: RouteHandler<P, T> | DynamicImport<RouteHandler<P, T>> | AnyRoute<T>[],
+): Route<P, T> | PrefixRoute<P, T> {
+  if (Array.isArray(arg)) {
+    return { pattern, routes: arg };
+  } else if (typeof arg === 'function') {
+    return { pattern, handler: arg };
+  } else {
+    return {
+      pattern,
+      async handler(match) {
+        let resolved = await resolveDynamicImport(arg);
+        return resolved(match);
+      },
+    };
+  }
 }
 
 export function lazy<P extends string, T>(
@@ -96,12 +87,7 @@ export function lazy<P extends string, T>(
 
 export interface MiddlewareRoute<T> {
   middleware: Middleware[];
-  routes: AnyRoute<T>[];
-}
-
-export interface PrefixRoute<P extends string, T> {
-  pattern: P;
-  routes: AnyRoute<T>[];
+  routes?: AnyRoute<T>[];
 }
 
 export interface RenderRoute<T> {
@@ -113,21 +99,18 @@ export function use<T, const R extends AnyRoute<T>[]>(
   middleware: Middleware | Middleware[],
   routes?: R,
 ): MiddlewareRoute<T>;
-export function use<P extends string, T, const R extends AnyRoute<T>[]>(
-  pattern: P,
-  routes: R,
-): PrefixRoute<P, T>;
 export function use<T, const R extends AnyRoute<T>[]>(
   renderer: Renderer<T>,
   routes: R,
 ): RenderRoute<T>;
-export function use(arg: Middleware | Middleware[] | string | Renderer<any>, routes?: any) {
+export function use<T>(
+  arg: Middleware | Middleware[] | Renderer<T>,
+  routes: AnyRoute<T>[],
+): MiddlewareRoute<T> | RenderRoute<T> {
   if (typeof arg === 'function') {
     return { middleware: [arg], routes };
   } else if (Array.isArray(arg)) {
     return { middleware: arg, routes };
-  } else if (typeof arg === 'string') {
-    return { pattern: arg, routes };
   } else {
     return { renderer: arg, routes };
   }
