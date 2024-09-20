@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { openFile, writeFile } from '@mjackson/lazy-file/fs';
 
 import { FileStorage } from './file-storage.js';
+import { FileMetadata, isNoEntityError, storeFile } from './utils.js';
 
 /**
  * A `FileStorage` that is backed by the local filesystem.
@@ -89,37 +90,6 @@ export class LocalFileStorage implements FileStorage {
   }
 }
 
-async function storeFile(dirname: string, file: File): Promise<string> {
-  let filename = randomFilename();
-
-  let handle: fsp.FileHandle;
-  try {
-    handle = await fsp.open(path.join(dirname, filename), 'w');
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
-      // Try again with a different filename
-      return storeFile(dirname, file);
-    } else {
-      throw error;
-    }
-  }
-
-  await writeFile(handle, file);
-
-  return filename;
-}
-
-function randomFilename(): string {
-  return `${new Date().getTime().toString(36)}.${Math.random().toString(36).slice(2, 6)}`;
-}
-
-interface FileMetadata {
-  file: string;
-  name: string;
-  type: string;
-  mtime: number;
-}
-
 class FileMetadataIndex {
   #path: string;
 
@@ -162,8 +132,4 @@ class FileMetadataIndex {
     let info = await this.#getAll();
     await this.#save({ ...info, [key]: undefined });
   }
-}
-
-function isNoEntityError(obj: unknown): obj is NodeJS.ErrnoException & { code: 'ENOENT' } {
-  return obj instanceof Error && 'code' in obj && (obj as NodeJS.ErrnoException).code === 'ENOENT';
 }
