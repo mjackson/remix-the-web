@@ -1,57 +1,66 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { describe, it } from 'node:test';
+import test, { describe, it } from 'node:test';
 import { TempFileStorage } from './temp-file-storage.js';
 
-describe('TempFileStorage', () => {
-  it('stores and retrieves files', async () => {
-    await using storage = new TempFileStorage('test-');
-    let lastModified = Date.now();
-    let file = new File(['Hello, world!'], 'hello.txt', {
-      type: 'text/plain',
-      lastModified,
-    });
+async function testStorage(storage: TempFileStorage) {
+  assert.equal(storage.dirname, undefined);
 
-    await storage.set('hello', file);
-
-    assert.ok(storage.has('hello'));
-
-    let retrieved = storage.get('hello');
-
-    assert.ok(retrieved);
-    assert.equal(retrieved.name, 'hello.txt');
-    assert.equal(retrieved.type, 'text/plain');
-    assert.equal(retrieved.lastModified, lastModified);
-    assert.equal(retrieved.size, 13);
-
-    let text = await retrieved.text();
-
-    assert.equal(text, 'Hello, world!');
-
-    await storage.remove('hello');
-
-    assert.ok(!storage.has('hello'));
-    assert.equal(storage.get('hello'), null);
+  let lastModified = Date.now();
+  let file = new File(['Hello, world!'], 'hello.txt', {
+    type: 'text/plain',
+    lastModified,
   });
 
-  it('only creates dir after set is called and removes the dir on disposal', async () => {
+  await storage.set('hello', file);
+
+  assert.notEqual(storage.dirname, undefined);
+  assert.doesNotThrow(() => fs.accessSync(storage.dirname!));
+
+  assert.ok(storage.has('hello'));
+
+  let retrieved = storage.get('hello');
+
+  assert.ok(retrieved);
+  assert.equal(retrieved.name, 'hello.txt');
+  assert.equal(retrieved.type, 'text/plain');
+  assert.equal(retrieved.lastModified, lastModified);
+  assert.equal(retrieved.size, 13);
+
+  let text = await retrieved.text();
+
+  assert.equal(text, 'Hello, world!');
+
+  await storage.remove('hello');
+
+  assert.ok(!storage.has('hello'));
+  assert.equal(storage.get('hello'), null);
+
+  return storage.dirname!;
+}
+
+describe('TempFileStorage', () => {
+  it('works with manual cleanup', async () => {
+    const storage = new TempFileStorage('test-');
+
+    const dir = await testStorage(storage);
+
+    // Manually clean up the directory
+    await storage.destroy();
+    assert.throws(() => fs.accessSync(dir));
+  });
+
+  it('works when used as an disposable', async () => {
     let dir: string;
     {
       await using storage = new TempFileStorage('test-');
-      assert.equal(storage.dirname, undefined);
-
-      await storage.set(
-        'hello',
-        new File(['Hello, world!'], 'hello.txt', {
-          type: 'text/plain',
-          lastModified: Date.now(),
-        }),
-      );
-
-      assert.notEqual(storage.dirname, undefined);
-      assert.doesNotThrow(() => fs.accessSync(storage.dirname!));
-      dir = storage.dirname!;
+      dir = await testStorage(storage);
     }
+    assert.throws(() => fs.accessSync(dir));
+  });
+
+  it('works when used with `use`', async () => {
+    const dir = await new TempFileStorage('test-').use(testStorage);
     assert.throws(() => fs.accessSync(dir));
   });
 });
