@@ -1,6 +1,6 @@
 import { openFile } from '@mjackson/lazy-file/fs';
 
-import { Middleware } from './middleware.js';
+import { Middleware } from '../middleware.js';
 
 export interface FaviconMiddlewareOptions {
   /**
@@ -25,7 +25,7 @@ export function faviconMiddleware(
 
   let maxAge = options?.maxAge ?? 0;
 
-  return async (request, next) => {
+  return async ({ request }, next) => {
     if (request.url !== '/favicon.ico') {
       return next();
     }

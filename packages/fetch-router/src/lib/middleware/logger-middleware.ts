@@ -1,4 +1,4 @@
-import { Middleware } from './middleware.js';
+import { Middleware } from '../middleware.js';
 
 export interface LoggerMiddlewareOptions {
   /**
@@ -39,7 +39,7 @@ export function loggerMiddleware(options?: LoggerMiddlewareOptions): Middleware 
   let format = options?.format ?? '[%date] %method %path %status %contentLength';
   let log = options?.log ?? console.log;
 
-  return async (request, next) => {
+  return async ({ request }, next) => {
     let start = new Date();
     let response = await next();
     let end = new Date();

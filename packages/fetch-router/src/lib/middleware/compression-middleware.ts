@@ -1,4 +1,4 @@
-import { Middleware } from './middleware.js';
+import { Middleware } from '../middleware.js';
 
 export interface CompressionMiddlewareOptions {
   /**
@@ -31,7 +31,7 @@ export function compressionMiddleware(options?: CompressionMiddlewareOptions): M
   let format = options?.format ?? 'gzip';
   let threshold = options?.threshold ?? 1024;
 
-  return async (_request, next) => {
+  return async (_, next) => {
     let response = await next();
 
     if (response.body == null) {

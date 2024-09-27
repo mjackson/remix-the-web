@@ -1,18 +1,21 @@
 import { String } from 'ts-toolbelt';
 
-type RequiredParamName<T> = T extends `:${infer R}` ? (R extends `${string}?` ? never : R) : never;
-type OptionalParamName<T> = T extends `:${infer R}` ? (R extends `${infer L}?` ? L : never) : never;
+type ParamName<T> = T extends `:${infer R}` ? (R extends `${string}?` ? never : R) : never;
 
-export type RequiredHostnameParamName<T extends string> = RequiredParamName<
-  String.Split<T, '.'>[number]
->;
+export type HostnameParamName<T extends string> = ParamName<String.Split<T, '.'>[number]>;
+
+export type PathnameParamName<T extends string> = ParamName<String.Split<T, '/'>[number]>;
+
+// prettier-ignore
+type OptionalParamName<T> =
+  T extends '*' ? T :
+  T extends `:${infer R}` ?
+    R extends `${infer L}?` ? L :
+    never :
+  never;
 
 export type OptionalHostnameParamName<T extends string> = OptionalParamName<
   String.Split<T, '.'>[number]
->;
-
-export type RequiredPathnameParamName<T extends string> = RequiredParamName<
-  String.Split<T, '/'>[number]
 >;
 
 export type OptionalPathnameParamName<T extends string> = OptionalParamName<
