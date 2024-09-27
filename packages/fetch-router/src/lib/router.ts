@@ -1,38 +1,13 @@
 import { DynamicImport, resolveDynamicImport } from './dynamic-import.js';
 import { Middleware } from './middleware.js';
-import { Params } from './params.js';
-import {
-  RequiredHostnameParamName,
-  OptionalHostnameParamName,
-  RequiredPathnameParamName,
-  OptionalPathnameParamName,
-  SearchParamName,
-} from './params-helpers.js';
 import { Renderer } from './renderer.js';
-import { ExtractHostname, ExtractPathname, ExtractSearch } from './pattern-helpers.js';
-import { SearchParams } from './search-params.js';
-
-export interface RouteMatch<P extends string> {
-  params: Params<
-    RequiredHostnameParamName<ExtractHostname<P>> | RequiredPathnameParamName<ExtractPathname<P>>,
-    OptionalHostnameParamName<ExtractHostname<P>> | OptionalPathnameParamName<ExtractPathname<P>>
-  >;
-
-  searchParams: SearchParams<SearchParamName<ExtractSearch<P>>>;
-}
-
-export interface RouteHandler<P extends string, R> {
-  (match: RouteMatch<P>): R | Promise<R>;
-}
-
-export function createRoutes<const R extends AnyRoute<Response>[]>(routes: R): R {
-  return routes;
-}
+import { RouteHandler, RouteArg } from './route-handler.js';
+import { JoinPatterns, joinPatterns } from './route-pattern.js';
 
 export type AnyRoute<T> =
-  | Route<string, T>
-  | PrefixRoute<string, T>
-  | MiddlewareRoute<T>
+  | Route<any, T>
+  | PrefixRoute<T>
+  | MiddlewareRoute<any, T>
   | RenderRoute<any>;
 
 export interface Route<P extends string, T> {
@@ -40,53 +15,12 @@ export interface Route<P extends string, T> {
   handler: RouteHandler<P, T>;
 }
 
-export interface PrefixRoute<P extends string, T> {
-  pattern: P;
+export interface PrefixRoute<T> {
   routes: AnyRoute<T>[];
 }
 
-export function route<P extends string, T>(
-  pattern: P,
-  handler: RouteHandler<P, T> | DynamicImport<RouteHandler<P, T>>,
-): Route<P, T>;
-export function route<P extends string, T, const R extends AnyRoute<T>[]>(
-  pattern: P,
-  routes: R,
-): PrefixRoute<P, T>;
-export function route<P extends string, T>(
-  pattern: P,
-  arg: RouteHandler<P, T> | DynamicImport<RouteHandler<P, T>> | AnyRoute<T>[],
-): Route<P, T> | PrefixRoute<P, T> {
-  if (Array.isArray(arg)) {
-    return { pattern, routes: arg };
-  } else if (typeof arg === 'function') {
-    return { pattern, handler: arg };
-  } else {
-    return {
-      pattern,
-      async handler(match) {
-        let resolved = await resolveDynamicImport(arg);
-        return resolved(match);
-      },
-    };
-  }
-}
-
-export function lazy<P extends string, T>(
-  pattern: P,
-  handler: () => DynamicImport<RouteHandler<P, T>>,
-): Route<P, T> {
-  return {
-    pattern,
-    async handler(match) {
-      let resolved = await resolveDynamicImport(handler());
-      return resolved(match);
-    },
-  };
-}
-
-export interface MiddlewareRoute<T> {
-  middleware: Middleware[];
+export interface MiddlewareRoute<P extends string, T> {
+  middleware: Middleware<P>[];
   routes?: AnyRoute<T>[];
 }
 
@@ -95,23 +29,74 @@ export interface RenderRoute<T> {
   routes: AnyRoute<T>[];
 }
 
-export function use<T, const R extends AnyRoute<T>[]>(
-  middleware: Middleware | Middleware[],
-  routes?: R,
-): MiddlewareRoute<T>;
-export function use<T, const R extends AnyRoute<T>[]>(
-  renderer: Renderer<T>,
-  routes: R,
-): RenderRoute<T>;
-export function use<T>(
-  arg: Middleware | Middleware[] | Renderer<T>,
-  routes: AnyRoute<T>[],
-): MiddlewareRoute<T> | RenderRoute<T> {
-  if (typeof arg === 'function') {
-    return { middleware: [arg], routes };
-  } else if (Array.isArray(arg)) {
-    return { middleware: arg, routes };
-  } else {
-    return { renderer: arg, routes };
+export interface Router<E extends string, T> {
+  route<A extends string>(
+    pattern: A,
+    handler:
+      | RouteHandler<JoinPatterns<E, A>, T>
+      | DynamicImport<RouteHandler<JoinPatterns<E, A>, T>>,
+  ): Route<JoinPatterns<E, A>, T>;
+
+  lazy<A extends string>(
+    pattern: A,
+    handler: () => DynamicImport<RouteHandler<JoinPatterns<E, A>, T>>,
+  ): Route<JoinPatterns<E, A>, T>;
+
+  use<A extends string>(
+    pattern: A,
+    callback: (router: Router<JoinPatterns<E, A>, T>) => AnyRoute<T>[],
+  ): PrefixRoute<T>;
+  use(
+    middleware: Middleware<E> | Middleware<E>[],
+    callback?: (router: Router<E, T>) => AnyRoute<T>[],
+  ): MiddlewareRoute<E, T>;
+  use<T>(renderer: Renderer<T>, callback: (router: Router<E, T>) => AnyRoute<T>[]): RenderRoute<T>;
+}
+
+export function createRouter<P extends string = '/', T = Response>(pattern?: P): Router<P, T> {
+  let basePattern = pattern ?? '/';
+
+  function route(pattern: string, handler: any) {
+    if (typeof handler === 'function') {
+      return { pattern: joinPatterns(basePattern, pattern), handler };
+    } else {
+      return {
+        pattern: joinPatterns(basePattern, pattern),
+        async handler(arg: RouteArg<any>) {
+          let resolved = (await resolveDynamicImport(handler)) as RouteHandler<any, T>;
+          return resolved(arg);
+        },
+      };
+    }
   }
+
+  function lazy(pattern: string, handler: any) {
+    return {
+      pattern: joinPatterns(basePattern, pattern),
+      async handler(arg: RouteArg<any>) {
+        let resolved = (await resolveDynamicImport(handler())) as RouteHandler<any, T>;
+        return resolved(arg);
+      },
+    };
+  }
+
+  function use(arg: any, callback: any) {
+    if (typeof arg === 'string') {
+      return { routes: callback(createRouter(joinPatterns(basePattern, arg))) };
+    } else if (typeof arg === 'function') {
+      return { middleware: [arg], routes: callback?.(createRouter(basePattern)) };
+    } else if (Array.isArray(arg)) {
+      return { middleware: arg, routes: callback?.(createRouter(basePattern)) };
+    } else {
+      return { renderer: arg, routes: callback(createRouter(basePattern)) };
+    }
+  }
+
+  return { route, lazy, use } as Router<P, T>;
+}
+
+export function createRoutes<T = Response, const R extends AnyRoute<T>[] = AnyRoute<T>[]>(
+  callback: (router: Router<'/', T>) => R,
+): R {
+  return callback(createRouter()) as R;
 }

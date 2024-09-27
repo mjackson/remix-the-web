@@ -20,11 +20,11 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@mjackson/lazy-file": "workspace:*"
+    "@mjackson/lazy-file": "workspace:*",
+    "ts-toolbelt": "^9.6.0"
   },
   "devDependencies": {
-    "@types/node": "^22.5.0",
-    "ts-toolbelt": "^9.6.0"
+    "@types/node": "^22.5.0"
   },
   "scripts": {
     "build": "tsc --outDir dist --project tsconfig.lib.json",

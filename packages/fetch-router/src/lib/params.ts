@@ -8,17 +8,17 @@ export type ParamsInit<T extends string = string> =
  *
  * Note: This is a read-only subset of the web's native [`URLSearchParams`](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams) interface.
  */
-export class Params<R extends string = never, O extends string = never>
-  implements Iterable<[string, string]>
-{
+export class Params<T extends string = never> implements Iterable<[string, string]> {
   protected pairs: [string, string][];
 
-  constructor(init?: ParamsInit<R>) {
+  constructor(init?: ParamsInit<T>) {
     this.pairs = [];
 
     if (init != null) {
       if (Array.isArray(init) || isIterable(init)) {
-        for (let [name, value] of init) this.append(name, value);
+        for (let [name, value] of init) {
+          this.append(name, value);
+        }
       } else {
         for (let name in init) {
           let value = init[name];
@@ -36,8 +36,7 @@ export class Params<R extends string = never, O extends string = never>
     this.pairs.push([name, value]);
   }
 
-  has(name: R): true;
-  has(name: O): boolean;
+  has(name: T): true;
   has(name: string): boolean;
   has(name: string): boolean {
     for (let [n] of this.pairs) {
@@ -47,8 +46,7 @@ export class Params<R extends string = never, O extends string = never>
     return false;
   }
 
-  get(name: R): string;
-  get(name: O): string | null;
+  get(name: T): string;
   get(name: string): string | null;
   get(name: string): string | null {
     for (let i = this.pairs.length - 1; i >= 0; --i) {

@@ -3,7 +3,7 @@ import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import { openFile } from '@mjackson/lazy-file/fs';
 
-import { Middleware } from './middleware.js';
+import { Middleware } from '../middleware.js';
 
 interface StaticMiddlewareOptions {
   /**
@@ -43,7 +43,7 @@ export function staticMiddleware(rootDir: string, options?: StaticMiddlewareOpti
   let immutable = options?.immutable ?? false;
   let maxAge = options?.maxAge ?? 0;
 
-  return async (request, next) => {
+  return async ({ request }, next) => {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       return next();
     }

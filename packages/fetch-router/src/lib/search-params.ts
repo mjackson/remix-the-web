@@ -1,6 +1,5 @@
 import { ParamsInit, Params } from './params.js';
 import { SearchParamName } from './params-helpers.js';
-import { normalizeSearch } from './pattern-helpers.js';
 
 export type SearchParamsInit<T extends string = string> = ParamsInit<T>;
 
@@ -26,6 +25,6 @@ export class SearchParams<T extends string = never> extends Params<T> {
 
   override toString(): string {
     // @ts-expect-error URLSearchParams() in lib.dom is missing Iterable<[string, string]>
-    return normalizeSearch(new URLSearchParams(this).toString());
+    return new URLSearchParams(this).toString();
   }
 }

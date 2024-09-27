@@ -1,21 +1,32 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Assert, Equal } from '../../test/spec-helpers.js';
 import {
-  RequiredHostnameParamName,
+  HostnameParamName,
+  PathnameParamName,
   OptionalHostnameParamName,
-  RequiredPathnameParamName,
   OptionalPathnameParamName,
   SearchParamName,
 } from './params-helpers.js';
 
-type RequiredHostnameParamNameSpec = [
-  Assert<Equal<RequiredHostnameParamName<''>, never>>,
-  Assert<Equal<RequiredHostnameParamName<'remix.run'>, never>>,
-  Assert<Equal<RequiredHostnameParamName<'mj.remix.run'>, never>>,
-  Assert<Equal<RequiredHostnameParamName<':sub.remix.run'>, 'sub'>>,
-  Assert<Equal<RequiredHostnameParamName<':sub?.remix.run'>, never>>,
-  Assert<Equal<RequiredHostnameParamName<':sub?.:id.remix.run'>, 'id'>>,
-  Assert<Equal<RequiredHostnameParamName<':sub?.:id?.remix.run'>, never>>,
+type HostnameParamNameSpec = [
+  Assert<Equal<HostnameParamName<''>, never>>,
+  Assert<Equal<HostnameParamName<'remix.run'>, never>>,
+  Assert<Equal<HostnameParamName<'mj.remix.run'>, never>>,
+  Assert<Equal<HostnameParamName<':sub.remix.run'>, 'sub'>>,
+  Assert<Equal<HostnameParamName<':sub?.remix.run'>, never>>,
+  Assert<Equal<HostnameParamName<':sub?.:id.remix.run'>, 'id'>>,
+  Assert<Equal<HostnameParamName<':sub?.:id?.remix.run'>, never>>,
+];
+
+type PathnameParamNameSpec = [
+  Assert<Equal<PathnameParamName<''>, never>>,
+  Assert<Equal<PathnameParamName<'/'>, never>>,
+  Assert<Equal<PathnameParamName<'//'>, never>>,
+  Assert<Equal<PathnameParamName<'/blog'>, never>>,
+  Assert<Equal<PathnameParamName<'/blog/:slug'>, 'slug'>>,
+  Assert<Equal<PathnameParamName<'/blog/:slug?'>, never>>,
+  Assert<Equal<PathnameParamName<'/blog/:slug?/:id'>, 'id'>>,
+  Assert<Equal<PathnameParamName<'/blog/:slug?/:id?'>, never>>,
 ];
 
 type OptionalHostnameParamNameSpec = [
@@ -26,17 +37,7 @@ type OptionalHostnameParamNameSpec = [
   Assert<Equal<OptionalHostnameParamName<':sub?.remix.run'>, 'sub'>>,
   Assert<Equal<OptionalHostnameParamName<':sub?.:id.remix.run'>, 'sub'>>,
   Assert<Equal<OptionalHostnameParamName<':sub?.:id?.remix.run'>, 'sub' | 'id'>>,
-];
-
-type RequiredPathnameParamNameSpec = [
-  Assert<Equal<RequiredPathnameParamName<''>, never>>,
-  Assert<Equal<RequiredPathnameParamName<'/'>, never>>,
-  Assert<Equal<RequiredPathnameParamName<'//'>, never>>,
-  Assert<Equal<RequiredPathnameParamName<'/blog'>, never>>,
-  Assert<Equal<RequiredPathnameParamName<'/blog/:slug'>, 'slug'>>,
-  Assert<Equal<RequiredPathnameParamName<'/blog/:slug?'>, never>>,
-  Assert<Equal<RequiredPathnameParamName<'/blog/:slug?/:id'>, 'id'>>,
-  Assert<Equal<RequiredPathnameParamName<'/blog/:slug?/:id?'>, never>>,
+  Assert<Equal<OptionalHostnameParamName<'*.remix.run'>, '*'>>,
 ];
 
 type OptionalPathnameParamNameSpec = [
@@ -48,6 +49,7 @@ type OptionalPathnameParamNameSpec = [
   Assert<Equal<OptionalPathnameParamName<'/blog/:slug?'>, 'slug'>>,
   Assert<Equal<OptionalPathnameParamName<'/blog/:slug?/:id'>, 'slug'>>,
   Assert<Equal<OptionalPathnameParamName<'/blog/:slug?/:id?'>, 'slug' | 'id'>>,
+  Assert<Equal<OptionalPathnameParamName<'/files/*'>, '*'>>,
 ];
 
 type SearchParamNameSpec = [
