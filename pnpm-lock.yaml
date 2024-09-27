@@ -33,13 +33,13 @@ importers:
       '@mjackson/lazy-file':
         specifier: workspace:*
         version: link:../lazy-file
+      ts-toolbelt:
+        specifier: ^9.6.0
+        version: 9.6.0
     devDependencies:
       '@types/node':
         specifier: ^22.5.0
         version: 22.5.0
-      ts-toolbelt:
-        specifier: ^9.6.0
-        version: 9.6.0
 
   packages/file-storage:
     dependencies:
