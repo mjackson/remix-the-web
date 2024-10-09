@@ -16,6 +16,7 @@
     "README.md"
   ],
   "type": "module",
+  "main": "dist/headers.js",
   "exports": {
     ".": "./dist/headers.js",
     "./package.json": "./package.json"
