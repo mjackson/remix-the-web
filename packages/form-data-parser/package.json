@@ -16,6 +16,7 @@
     "README.md"
   ],
   "type": "module",
+  "main": "dist/form-data-parser.js",
   "exports": {
     ".": "./dist/form-data-parser.js",
     "./package.json": "./package.json"
