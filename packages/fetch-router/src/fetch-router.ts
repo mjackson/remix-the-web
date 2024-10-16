@@ -1,9 +1,14 @@
 export { type Context, createContext, ContextProvider } from './lib/context.js';
 export { type Middleware, type NextFunction } from './lib/middleware.js';
 export { type ParamsInit, Params } from './lib/params.js';
-export { type Renderer, createRenderer } from './lib/renderer.js';
+export { type Renderer, createRenderer, DefaultRenderer } from './lib/renderer.js';
 export { type RouteArg, type RouteHandler } from './lib/route-handler.js';
-export { type RoutePatternOptions, RoutePattern, RoutePatternMatch } from './lib/route-pattern.js';
+export {
+  type RoutePatternParts,
+  type RoutePatternOptions,
+  RoutePattern,
+  RoutePatternMatch,
+} from './lib/route-pattern.js';
 export {
   type AnyRoute,
   type Route,
