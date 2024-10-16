@@ -43,8 +43,8 @@ export function loggerMiddleware(options?: LoggerMiddlewareOptions): Middleware 
     let start = new Date();
     let response = await next();
     let end = new Date();
-    let url = new URL(request.url);
 
+    let url = new URL(request.url);
     let message = format.replace(/%(\w+)/g, (_, key) => {
       if (key === 'contentLength') return response.headers.get('Content-Length') ?? '-';
       if (key === 'contentType') return response.headers.get('Content-Type') ?? '-';

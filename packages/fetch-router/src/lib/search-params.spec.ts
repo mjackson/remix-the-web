@@ -6,11 +6,6 @@ import { Assert, Equal } from '../../test/spec-helpers.js';
 import { SearchParams } from './search-params.js';
 
 describe('SearchParams', () => {
-  it('infers the types of keys from a search string', () => {
-    let params = SearchParams.fromSearch('id=remix&id=rocks');
-    type T = Assert<Equal<typeof params, SearchParams<'id'>>>;
-  });
-
   it('has() returns a boolean for unknown params', () => {
     let params = new SearchParams();
     let test = params.has('id');
@@ -35,16 +30,12 @@ describe('SearchParams', () => {
     type T = Assert<Equal<typeof test, string>>;
   });
 
-  it('knows how to parse a query string', () => {
-    let params = SearchParams.fromSearch('a=1&b=2');
-    assert.equal(params.get('a'), '1');
-    assert.equal(params.get('b'), '2');
-  });
-
-  it('knows how to parse a query string with no value', () => {
-    let params = SearchParams.fromSearch('a&b');
-    assert.equal(params.get('a'), '');
-    assert.equal(params.get('b'), '');
+  it('gets the first value for a param with multiple values', () => {
+    let params = new SearchParams([
+      ['id', 'remix'],
+      ['id', 'run'],
+    ]);
+    assert.equal(params.get('id'), 'remix');
   });
 
   it('knows how to convert to a search string', () => {

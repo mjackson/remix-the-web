@@ -3,7 +3,7 @@ import { HostnameParamName, PathnameParamName, SearchParamName } from './params-
 import { SearchParams } from './search-params.js';
 import { warning } from './warning.js';
 
-interface RoutePatternParts {
+export interface RoutePatternParts {
   protocol: string;
   hostname: string;
   pathname: string;
@@ -20,7 +20,7 @@ export interface RoutePatternOptions {
 /**
  * A pattern that matches a URL.
  */
-export class RoutePattern<P extends string> {
+export class RoutePattern<T extends string> {
   /**
    * Parses a pattern into its constituent parts.
    * @param pattern The pattern to parse.
@@ -52,7 +52,7 @@ export class RoutePattern<P extends string> {
   /**
    * The original pattern string.
    */
-  readonly source: P;
+  readonly source: T;
   /**
    * Whether to ignore case when matching the pattern.
    */
@@ -65,8 +65,8 @@ export class RoutePattern<P extends string> {
     regexp: RegExp;
   } | null = null;
 
-  constructor(pattern?: P, options?: RoutePatternOptions) {
-    this.source = pattern ?? ('/' as P);
+  constructor(pattern?: T, options?: RoutePatternOptions) {
+    this.source = pattern ?? ('/' as T);
     this.ignoreCase = options?.ignoreCase ?? true;
 
     this.#parts = RoutePattern.parse(this.source);
@@ -77,7 +77,7 @@ export class RoutePattern<P extends string> {
    * @param url The URL to match against.
    * @returns The match if this pattern matches the URL, `null` otherwise.
    */
-  match(url: URL): RoutePatternMatch<P> | null {
+  match(url: URL): RoutePatternMatch<T> | null {
     if (this.#compiled === null) {
       this.#compiled = compilePattern(this.#parts, this.ignoreCase);
     }
@@ -157,7 +157,7 @@ export class RoutePattern<P extends string> {
 }
 
 function compilePattern(
-  { protocol, hostname, pathname }: Omit<RoutePatternParts, 'search'>,
+  { protocol, hostname, pathname }: RoutePatternParts,
   ignoreCase: boolean,
 ): {
   hostnameKeys: string[];
@@ -269,22 +269,26 @@ function safelyDecodePathnameParam(paramName: string, value: string): string {
   }
 }
 
+export type RoutePatternParamName<T extends string> =
+  | HostnameParamName<ExtractHostname<T>>
+  | PathnameParamName<ExtractPathname<T>>;
+
+export type RoutePatternSearchParamName<T extends string> = SearchParamName<ExtractSearch<T>>;
+
 /**
  * Contains information about the params and searchParams that were found in the URL.
  */
-export class RoutePatternMatch<P extends string> {
+export class RoutePatternMatch<T extends string> {
   /**
    * The matched params found in the URL hostname and pathname.
    */
-  readonly params: Params<
-    HostnameParamName<ExtractHostname<P>> | PathnameParamName<ExtractPathname<P>>
-  >;
+  params: Params<RoutePatternParamName<T>>;
   /**
    * The matched search params found in the URL search/query string.
    */
-  readonly searchParams: SearchParams<SearchParamName<ExtractSearch<P>>>;
+  searchParams: SearchParams<RoutePatternSearchParamName<T>>;
 
-  constructor(params: Params<any>, searchParams: SearchParams<any>) {
+  constructor(params: Params, searchParams: SearchParams) {
     this.params = params;
     this.searchParams = searchParams;
   }

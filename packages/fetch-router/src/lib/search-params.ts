@@ -1,5 +1,4 @@
 import { ParamsInit, Params } from './params.js';
-import { SearchParamName } from './params-helpers.js';
 
 export type SearchParamsInit<T extends string = string> = ParamsInit<T>;
 
@@ -8,15 +7,11 @@ export type SearchParamsInit<T extends string = string> = ParamsInit<T>;
  *
  * Note: This is a read-only subset of the web's native [`URLSearchParams`](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams) interface.
  */
-export class SearchParams<T extends string = never> extends Params<T> {
-  static fromSearch<T extends string>(search: T): SearchParams<SearchParamName<T>> {
-    return new SearchParams(new URLSearchParams(search)) as SearchParams<SearchParamName<T>>;
-  }
-
+export class SearchParams<T extends string = string> extends Params<T> {
   override get(name: T): string;
   override get(name: string): string | null;
   override get(name: string): string | null {
-    for (let [n, value] of this.pairs) {
+    for (let [n, value] of this) {
       if (n === name) return value;
     }
 
@@ -25,6 +20,7 @@ export class SearchParams<T extends string = never> extends Params<T> {
 
   override toString(): string {
     // @ts-expect-error URLSearchParams() in lib.dom is missing Iterable<[string, string]>
-    return new URLSearchParams(this).toString();
+    let str = new URLSearchParams(this).toString();
+    return str === '' ? '' : '?' + str;
   }
 }

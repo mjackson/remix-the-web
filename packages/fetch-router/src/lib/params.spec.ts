@@ -5,6 +5,19 @@ import { describe, it } from 'node:test';
 import { Assert, Equal } from '../../test/spec-helpers.js';
 import { Params } from './params.js';
 
+type ParamsSpec = [
+  // specific params are assignable to generic params
+  Assert<Equal<Params<'a'> extends Params ? true : false, true>>,
+  // more specific params are assignable to less specific params
+  Assert<Equal<Params<'a' | 'b'> extends Params<'a'> ? true : false, true>>,
+  // empty params are assignable to generic params
+  Assert<Equal<Params<never> extends Params ? true : false, true>>,
+  // params with different param names do not extend one another
+  Assert<Equal<Params<'b'> extends Params<'a'> ? true : false, false>>,
+  // empty params are not assignable to specific params
+  Assert<Equal<Params<never> extends Params<'a'> ? true : false, false>>,
+];
+
 describe('Params', () => {
   it('infers the types of required keys from an array in the constructor', () => {
     let params = new Params([
@@ -70,8 +83,8 @@ describe('Params', () => {
   });
 
   it('has() returns a boolean for unknown params', () => {
-    let params = new Params();
-    let test = params.has('id');
+    let params = new Params({ id: 'remix' });
+    let test = params.has('name');
     type T = Assert<Equal<typeof test, boolean>>;
   });
 
@@ -82,8 +95,8 @@ describe('Params', () => {
   });
 
   it('get() returns string | null for unknown params', () => {
-    let params = new Params();
-    let test = params.get('id');
+    let params = new Params({ id: 'remix' });
+    let test = params.get('name');
     type T = Assert<Equal<typeof test, string | null>>;
   });
 
