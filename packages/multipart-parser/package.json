@@ -16,6 +16,7 @@
     "README.md"
   ],
   "type": "module",
+  "main": "dist/multipart-parser.js",
   "exports": {
     ".": "./dist/multipart-parser.js",
     "./node": "./dist/multipart-parser.node.js",

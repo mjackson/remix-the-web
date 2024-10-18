@@ -16,6 +16,7 @@
     "README.md"
   ],
   "type": "module",
+  "main": "dist/fetch-proxy.js",
   "exports": {
     ".": "./dist/fetch-proxy.js",
     "./package.json": "./package.json"

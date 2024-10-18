@@ -16,6 +16,7 @@
     "README.md"
   ],
   "type": "module",
+  "main": "dist/node-fetch-server.js",
   "exports": {
     ".": "./dist/node-fetch-server.js",
     "./package.json": "./package.json"

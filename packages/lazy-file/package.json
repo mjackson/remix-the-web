@@ -16,6 +16,7 @@
     "README.md"
   ],
   "type": "module",
+  "main": "dist/lazy-file.js",
   "exports": {
     ".": "./dist/lazy-file.js",
     "./fs": "./dist/fs.js",

@@ -16,6 +16,7 @@
     "README.md"
   ],
   "type": "module",
+  "main": "dist/file-storage.js",
   "exports": {
     ".": "./dist/file-storage.js",
     "./local": "./dist/local.js",
