@@ -6,28 +6,28 @@ import { Assert, Equal } from '../../test/spec-helpers.js';
 import { SearchParams } from './search-params.js';
 
 describe('SearchParams', () => {
-  it('has() returns a boolean for unknown params', () => {
-    let params = new SearchParams();
-    let test = params.has('id');
-    type T = Assert<Equal<typeof test, boolean>>;
-  });
-
   it('has() returns true for known params', () => {
     let params = new SearchParams({ id: 'remix' });
     let test = params.has('id');
     type T = Assert<Equal<typeof test, true>>;
   });
 
-  it('get() returns string | null for unknown params', () => {
-    let params = new SearchParams();
-    let test = params.get('id');
-    type T = Assert<Equal<typeof test, string | null>>;
+  it('has() returns a boolean for unknown params', () => {
+    let params = new SearchParams({ id: 'remix' });
+    let test = params.has('name');
+    type T = Assert<Equal<typeof test, boolean>>;
   });
 
   it('get() returns a string for known params', () => {
     let params = new SearchParams({ id: 'remix' });
     let test = params.get('id');
     type T = Assert<Equal<typeof test, string>>;
+  });
+
+  it('get() returns string | null for unknown params', () => {
+    let params = new SearchParams({ id: 'remix' });
+    let test = params.get('name');
+    type T = Assert<Equal<typeof test, string | null>>;
   });
 
   it('gets the first value for a param with multiple values', () => {
