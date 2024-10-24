@@ -5,7 +5,7 @@ import { describe, it } from 'node:test';
 import { Assert, Equal } from '../../test/spec-helpers.js';
 import { Params } from './params.js';
 
-type ParamsSpec = [
+type ParamsVarianceSpec = [
   // specific params are assignable to generic params
   Assert<Equal<Params<'a'> extends Params ? true : false, true>>,
   // more specific params are assignable to less specific params

@@ -1,112 +1,115 @@
-import { DynamicImport, resolveDynamicImport } from './dynamic-import.js';
 import { Middleware } from './middleware.js';
+import { Params } from './params.js';
 import { Renderer, DefaultRenderer } from './renderer.js';
-import { RouteHandler, RouteArg } from './route-handler.js';
-import { RoutePattern, JoinPatterns, joinPatterns } from './route-pattern.js';
+import { RequestHandler } from './request-handler.js';
+import {
+  RoutePattern,
+  RoutePatternParamName,
+  RoutePatternSearchParamName,
+  JoinPatterns,
+  joinPatterns,
+} from './route-pattern.js';
+import { SearchParams } from './search-params.js';
 
-type DefaultRenderType = typeof DefaultRenderer extends Renderer<infer T> ? T : never;
+type DefaultRendererValueType = typeof DefaultRenderer extends Renderer<infer T> ? T : never;
 
-export type AnyRoute<T> =
-  | Route<any, T>
-  | PrefixRoute<T>
-  | MiddlewareRoute<any, T>
-  | RenderRoute<any>;
+type AnyRoute = Route<any> | MiddlewareRoute<any> | PrefixRoute<any> | RendererRoute<any>;
 
-export interface Route<P extends string, T> {
-  pattern: RoutePattern<P>;
-  handler: RouteHandler<P, T>;
+interface Route<T extends string> {
+  pattern: RoutePattern<T>;
+  handler: RequestHandler<Params, SearchParams, unknown>;
 }
 
-export interface PrefixRoute<T> {
-  children: AnyRoute<T>[];
+interface MiddlewareRoute<T extends ReadonlyArray<AnyRoute>> {
+  middleware: Middleware[];
+  children: T;
 }
 
-export interface MiddlewareRoute<P extends string, T> {
-  middleware: Middleware<P>[];
-  children?: AnyRoute<T>[];
+interface PrefixRoute<T extends ReadonlyArray<AnyRoute>> {
+  children: T;
 }
 
-export interface RenderRoute<T> {
-  renderer: Renderer<T>;
-  children: AnyRoute<T>[];
+interface RendererRoute<T extends ReadonlyArray<AnyRoute>> {
+  renderer: Renderer;
+  children: T;
 }
 
-export interface Router<E extends string, T> {
-  lazy<A extends string>(
+type RouterParams<P extends Params, T extends string> = Params<
+  P extends Params<infer U> ? U | RoutePatternParamName<T> : never
+> & {};
+
+type RouterSearchParams<S extends SearchParams, T extends string> = SearchParams<
+  S extends SearchParams<infer U> ? U | RoutePatternSearchParamName<T> : never
+> & {};
+
+export class Router<
+  P extends Params = Params<never>,
+  S extends SearchParams = SearchParams<never>,
+  R = DefaultRendererValueType,
+  E extends string = '/',
+> {
+  protected paramsVarianceMarker!: P;
+
+  protected searchParamsVarianceMarker!: S;
+
+  #pattern: E;
+
+  constructor(pattern?: E) {
+    this.#pattern = pattern ?? ('/' as E);
+    this.mount = this.mount.bind(this);
+    this.route = this.route.bind(this);
+    this.use = this.use.bind(this);
+  }
+
+  mount<A extends string, const C extends ReadonlyArray<AnyRoute>>(
     pattern: A,
-    handler: () => DynamicImport<RouteHandler<JoinPatterns<E, A>, T>>,
-  ): Route<JoinPatterns<E, A>, T>;
-
-  mount<A extends string>(
-    pattern: A,
-    callback: (router: Router<JoinPatterns<E, A>, T>) => AnyRoute<T>[],
-  ): PrefixRoute<T>;
-
-  render<T>(
-    renderer: Renderer<T>,
-    callback: (router: Router<E, T>) => AnyRoute<T>[],
-  ): RenderRoute<T>;
+    callback: (
+      router: Router<RouterParams<P, A>, RouterSearchParams<S, A>, R, JoinPatterns<E, A>>,
+    ) => C,
+  ): PrefixRoute<C> {
+    return {
+      children: callback(new Router(joinPatterns(this.#pattern, pattern) as JoinPatterns<E, A>)),
+    };
+  }
 
   route<A extends string>(
     pattern: A,
-    handler:
-      | RouteHandler<JoinPatterns<E, A>, T>
-      | DynamicImport<RouteHandler<JoinPatterns<E, A>, T>>,
-  ): Route<JoinPatterns<E, A>, T>;
+    handler: RequestHandler<RouterParams<P, A>, RouterSearchParams<S, A>, R>,
+  ): Route<JoinPatterns<E, A>> {
+    return {
+      pattern: new RoutePattern(joinPatterns(this.#pattern, pattern) as JoinPatterns<E, A>),
+      handler,
+    };
+  }
 
-  use(
-    middleware: Middleware<E> | Middleware<E>[],
-    callback?: (router: Router<E, T>) => AnyRoute<T>[],
-  ): MiddlewareRoute<E, T>;
-}
-
-export function createRouter<P extends string = '/', T = DefaultRenderType>(
-  pattern?: P,
-): Router<P, T> {
-  let basePattern = pattern ?? '/';
-  let router = {
-    lazy(pattern: string, handler: any): Route<string, T> {
+  use<M extends Middleware<P, S>, const C extends ReadonlyArray<AnyRoute>>(
+    middleware: M | M[],
+    callback?: (router: Router<P, S, R, E>) => C,
+  ): MiddlewareRoute<C>;
+  use<T, const C extends ReadonlyArray<AnyRoute>>(
+    renderer: Renderer<T>,
+    callback: (router: Router<P, S, T, E>) => C,
+  ): RendererRoute<C>;
+  use<const C extends ReadonlyArray<AnyRoute>>(
+    arg: Middleware | Middleware[] | Renderer,
+    callback: (router: Router<P, S, any, E>) => C,
+  ): MiddlewareRoute<C> | RendererRoute<C> {
+    if (typeof arg === 'function' || Array.isArray(arg)) {
       return {
-        pattern: new RoutePattern(joinPatterns(basePattern, pattern)),
-        async handler(arg: RouteArg<any>) {
-          let resolved = (await resolveDynamicImport(handler())) as RouteHandler<any, T>;
-          return resolved(arg);
-        },
+        middleware: Array.isArray(arg) ? arg : [arg],
+        children: callback?.(this) ?? ([] as unknown as C),
       };
-    },
-    mount(pattern: string, callback: any): PrefixRoute<T> {
-      return { children: callback(createRouter(joinPatterns(basePattern, pattern))) };
-    },
-    render(renderer: Renderer<any>, callback: any): RenderRoute<any> {
-      return { renderer, children: callback(router) };
-    },
-    route(pattern: string, handler: any): Route<string, T> {
-      if (typeof handler === 'function') {
-        return { pattern: new RoutePattern(joinPatterns(basePattern, pattern)), handler };
-      } else {
-        return {
-          pattern: new RoutePattern(joinPatterns(basePattern, pattern)),
-          async handler(arg: RouteArg<any>) {
-            let resolved = (await resolveDynamicImport(handler)) as RouteHandler<any, T>;
-            return resolved(arg);
-          },
-        };
-      }
-    },
-    use(middleware: Middleware<any> | Middleware<any>[], callback?: any): MiddlewareRoute<any, T> {
-      if (typeof middleware === 'function') {
-        return { middleware: [middleware], children: callback?.(router) };
-      } else {
-        return { middleware, children: callback?.(router) };
-      }
-    },
-  };
-
-  return router as Router<P, T>;
+    } else {
+      return {
+        renderer: arg,
+        children: callback(this as Router<P, S, any, E>),
+      };
+    }
+  }
 }
 
-export function createRoutes<T = DefaultRenderType, const R extends AnyRoute<T>[] = AnyRoute<T>[]>(
-  callback: (router: Router<'/', T>) => R,
-): R {
-  return callback(createRouter()) as R;
+export function createRoutes<const C extends ReadonlyArray<AnyRoute>>(
+  callback: (router: Router) => C,
+): C {
+  return callback(new Router());
 }
