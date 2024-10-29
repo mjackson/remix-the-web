@@ -1,5 +1,5 @@
 import { Params } from './params.js';
-import { HostnameParamName, PathnameParamName, SearchParamName } from './params-helpers.js';
+import { HostnameParamName, PathnameParamName, SearchParamName } from './route-pattern-helpers.js';
 import { SearchParams } from './search-params.js';
 import { warning } from './warning.js';
 
