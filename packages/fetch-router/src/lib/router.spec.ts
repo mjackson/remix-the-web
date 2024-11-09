@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { Assert, Equal } from '../../test/spec-helpers.js';
 import { Params } from './params.js';
 import { createRenderer } from './renderer.js';
-import { RequestHandler } from './request-handler.js';
+import { RouteHandler } from './route-handler.js';
 import { Router, createRoutes } from './router.js';
 import { SearchParams } from './search-params.js';
 
@@ -108,7 +108,7 @@ describe('request handler', () => {
   });
 
   it('renders a number when using a custom renderer', () => {
-    let handler: RequestHandler<Params, SearchParams, number> = ({ render }) => render(123);
+    let handler: RouteHandler<Params, SearchParams, number> = ({ render }) => render(123);
 
     // prettier-ignore
     createRoutes(({ use }) => [

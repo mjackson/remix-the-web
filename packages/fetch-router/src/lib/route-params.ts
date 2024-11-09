@@ -24,7 +24,7 @@ export type OptionalPathnameParamName<T extends string> = OptionalParamName<
 
 // prettier-ignore
 export type SearchParamName<T extends string> =
-  T extends `` ? never :
+  T extends '' ? never :
   T extends `?${infer R}` ? SearchParamName_<R> :
   SearchParamName_<T>
 
@@ -32,7 +32,7 @@ type SearchParamName_<T extends string> = SearchPairName<String.Split<T, '&'>[nu
 
 // prettier-ignore
 type SearchPairName<T extends string> =
-  T extends `` ? never :
+  T extends '' ? never :
   T extends `${infer L}=${string}` ?
-    L extends `` ? never : L :
+    L extends '' ? never : L :
 	T

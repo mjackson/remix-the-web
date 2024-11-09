@@ -8,15 +8,14 @@ export type ParamsInit<T extends string = string> =
  *
  * Note: This is a read-only subset of the web's native [`URLSearchParams`](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams) interface.
  */
-export class Params<T extends string = string> implements Iterable<[string, string]> {
-  // This property is needed only to ensure that Params<never> does not extend more
-  // specific Params types, e.g. Params<'a'>. It's protected to prevent it from showing
-  // up in intellisense suggestions.
-  protected varianceMarker!: { [K in T]: K };
+export class Params<R extends string = string, O extends string = string>
+  implements Iterable<[string, string]>
+{
+  protected varianceMarker!: { [K in R]: K };
 
   #pairs: Array<readonly [string, string]>;
 
-  constructor(init?: ParamsInit<T>) {
+  constructor(init?: ParamsInit<R>) {
     this.#pairs = [];
 
     if (init != null) {
@@ -41,7 +40,8 @@ export class Params<T extends string = string> implements Iterable<[string, stri
     this.#pairs.push([name, value]);
   }
 
-  has(name: T): true;
+  has(name: R): true;
+  has(name: O): boolean;
   has(name: string): boolean;
   has(name: string): boolean {
     for (let [n] of this.#pairs) {
@@ -51,7 +51,8 @@ export class Params<T extends string = string> implements Iterable<[string, stri
     return false as any;
   }
 
-  get(name: T): string;
+  get(name: R): string;
+  get(name: O): string | null;
   get(name: string): string | null;
   get(name: string): string | null {
     for (let i = this.#pairs.length - 1; i >= 0; --i) {
@@ -110,3 +111,9 @@ function isIterable<T>(obj: unknown): obj is Iterable<T> {
     typeof obj[Symbol.iterator] === 'function'
   );
 }
+
+// prettier-ignore
+export type JoinParams<A extends Params, B extends Params> = Params<
+  (A extends Params<infer R> ? R : never) | (B extends Params<infer R> ? R : never),
+  (A extends Params<infer _, infer O> ? O : never) | (B extends Params<infer _, infer O> ? O : never)
+> & {};

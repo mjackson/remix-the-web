@@ -11,11 +11,11 @@ type ParamsVarianceSpec = [
   // more specific params are assignable to less specific params
   Assert<Equal<Params<'a' | 'b'> extends Params<'a'> ? true : false, true>>,
   // empty params are assignable to generic params
-  Assert<Equal<Params<never> extends Params ? true : false, true>>,
+  Assert<Equal<Params<never, never> extends Params ? true : false, true>>,
   // params with different param names do not extend one another
   Assert<Equal<Params<'b'> extends Params<'a'> ? true : false, false>>,
   // empty params are not assignable to specific params
-  Assert<Equal<Params<never> extends Params<'a'> ? true : false, false>>,
+  Assert<Equal<Params<never, never> extends Params<'a'> ? true : false, false>>,
 ];
 
 describe('Params', () => {

@@ -11,7 +11,7 @@ import {
   PathnameParamName,
   OptionalHostnameParamName,
   OptionalPathnameParamName,
-} from './route-pattern-helpers.js';
+} from './route-params.js';
 
 // prettier-ignore
 export type RoutePatterns<T extends ReadonlyArray<AnyRoute>, B extends string = '/'> =
