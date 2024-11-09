@@ -6,7 +6,7 @@ import {
   OptionalHostnameParamName,
   OptionalPathnameParamName,
   SearchParamName,
-} from './route-pattern-helpers.js';
+} from './route-params.js';
 
 type HostnameParamNameSpec = [
   Assert<Equal<HostnameParamName<''>, never>>,

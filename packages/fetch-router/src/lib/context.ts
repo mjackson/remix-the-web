@@ -16,11 +16,21 @@ export function createContext<T>(defaultValue?: T): Context<T> {
   return { defaultValue };
 }
 
+export type InitialContext = Map<Context, unknown>;
+
 /**
  * Provides methods for writing/reading values to/from application context in a typesafe way.
  */
 export class ContextProvider {
-  #map = new Map<Context<any>, any>();
+  #map = new Map<Context, unknown>();
+
+  constructor(initialContext?: InitialContext) {
+    if (initialContext) {
+      for (let [context, value] of initialContext) {
+        this.set(context, value);
+      }
+    }
+  }
 
   set<C extends Context>(context: C, value: C extends Context<infer T> ? T : never): void {
     this.#map.set(context, value);
@@ -28,7 +38,7 @@ export class ContextProvider {
 
   get<T>(context: Context<T>): T {
     if (this.#map.has(context)) {
-      return this.#map.get(context);
+      return this.#map.get(context) as T;
     }
 
     if (context.defaultValue !== undefined) {

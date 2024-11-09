@@ -1,7 +1,7 @@
 import { Middleware } from './middleware.js';
 import { Params } from './params.js';
 import { Renderer, DefaultRenderer, createRenderer } from './renderer.js';
-import { RequestHandler } from './request-handler.js';
+import { RouteHandler } from './route-handler.js';
 import {
   RoutePattern,
   RoutePatternParamName,
@@ -21,7 +21,7 @@ export type AnyRoute =
 export interface Route<T extends string> {
   input: T;
   pattern: RoutePattern<string>;
-  handler: RequestHandler<Params, SearchParams, unknown>;
+  handler: RouteHandler<Params, SearchParams, unknown>;
 }
 
 export interface MiddlewareRoute<C extends ReadonlyArray<AnyRoute>> {
@@ -73,7 +73,7 @@ export class Router<
 
   route<T extends string>(
     pattern: T | RoutePattern<T>,
-    handler: RequestHandler<JoinParams<P, T>, JoinSearchParams<S, T>, R>,
+    handler: RouteHandler<JoinParams<P, T>, JoinSearchParams<S, T>, R>,
   ): Route<T> {
     if (pattern instanceof RoutePattern) {
       let input = pattern.source;
