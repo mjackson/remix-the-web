@@ -2,7 +2,7 @@ import * as http from 'node:http';
 
 import type { ClientAddress, ErrorHandler, FetchHandler } from './fetch-handler.js';
 
-import { FetchIncomingMessage as IncomingMessage } from './fetch-incoming-message.js';
+import { FetchIncomingMessage as IncomingMessage } from './fetch-incoming-message/index.js';
 import { internalServerError } from './utils.js';
 import { sendResponse } from './request-listener.js';
 
