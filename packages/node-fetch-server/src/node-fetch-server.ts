@@ -6,3 +6,7 @@ export {
   createRequest,
   sendResponse,
 } from './lib/request-listener.js';
+
+// hybrid magic
+export { FetchIncomingMessage } from './lib/fetch-incoming-message.js';
+export { createFetchServer } from './lib/create-fetch-server.js';
