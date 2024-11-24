@@ -16,7 +16,8 @@ run_benchmark() {
     local server_pid=$!
 
     # Wait for the server to start
-    sleep 2
+    # sleep 2
+    sleep 5
 
     wrk -t12 -c400 -d30s http://127.0.0.1:3000/
 
