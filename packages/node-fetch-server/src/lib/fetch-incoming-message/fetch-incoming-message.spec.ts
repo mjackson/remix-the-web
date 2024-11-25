@@ -31,6 +31,74 @@ async function parseRequest(httpMessage: string) {
 }
 
 describe('FetchIncomingMessage', () => {
+  it('should parse GET request', async () => {
+    await new Promise<void>(async (resolve) => {
+      const rawRequest = [
+        'GET /users HTTP/1.1',
+        'Host: example.com',
+        'Content-Length: 50',
+        '',
+        '',
+      ].join('\r\n');
+
+      const req = await parseRequest(rawRequest);
+
+      // do we have a request object?
+      assert.ok(req);
+
+      // did we get the method?
+      assert.equal(req.method, 'GET');
+
+      // did we get the HTTP version?
+      assert.equal(req.httpVersion, '1.1');
+      assert.equal(req.httpVersionMajor, 1);
+      assert.equal(req.httpVersionMinor, 1);
+
+      // check headers
+      assert.equal(req.headers.host, 'example.com');
+      assert.equal(req.headers.contentLength, 50);
+
+      //   // the content type header has multiple parts
+      //   assert.equal(req.headers.contentType.mediaType, 'application/x-www-form-urlencoded');
+      //   assert.equal(req.headers.contentType.charset, 'custom');
+
+      // check url
+      assert.equal(req.url, 'http://localhost/users');
+
+      resolve();
+    });
+  });
+
+  it('should parse GET request to index', async () => {
+    await new Promise<void>(async (resolve) => {
+      const rawRequest = ['GET / HTTP/1.1', 'Host: example.com', 'Content-Length: 50', '', ''].join(
+        '\r\n',
+      );
+
+      const req = await parseRequest(rawRequest);
+
+      // do we have a request object?
+      assert.ok(req);
+
+      // did we get the method?
+      assert.equal(req.method, 'GET');
+
+      // did we get the HTTP version?
+      assert.equal(req.httpVersion, '1.1');
+      assert.equal(req.httpVersionMajor, 1);
+      assert.equal(req.httpVersionMinor, 1);
+
+      // check headers
+      assert.equal(req.headers.host, 'example.com');
+      assert.equal(req.headers.contentLength, 50);
+
+      // check url
+      assert.equal(req.url, 'http://localhost/');
+
+      resolve();
+    });
+  });
+
   it('should parse POST request', async () => {
     await new Promise<void>(async (resolve) => {
       const body = 'name=FirstName%20LastName&email=user%40example.com';
@@ -179,6 +247,29 @@ describe('FetchIncomingMessage', () => {
       assert.ok(req);
 
       assert.rejects(() => req.blob(), { message: 'Method not implemented.' });
+
+      resolve();
+    });
+  });
+
+  it('should handle headers with mixed casing', async () => {
+    await new Promise<void>(async (resolve) => {
+      const rawRequest = [
+        'GET /users HTTP/1.1',
+        'hOsT: example.com',
+        'cOnTeNt-LeNgTh: 50',
+        '',
+        '',
+      ].join('\r\n');
+
+      const req = await parseRequest(rawRequest);
+
+      // do we have a request object?
+      assert.ok(req);
+
+      // check headers
+      assert.equal(req.headers.host, 'example.com');
+      assert.equal(req.headers.contentLength, 50);
 
       resolve();
     });
