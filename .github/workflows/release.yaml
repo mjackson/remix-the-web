@@ -9,6 +9,10 @@ jobs:
   release:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      id-token: write # The OIDC ID token is used for authentication with JSR.
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,3 +33,5 @@ jobs:
 
       - name: Release
         run: pnpm publish-release-ci ${{ github.ref_name }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
