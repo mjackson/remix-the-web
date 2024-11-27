@@ -60,6 +60,9 @@ if (packageJson.version !== version) {
 
 logAndExec(`npm publish --access public`, {
   cwd: getPackageDir(packageName),
+  env: {
+    NODE_AUTH_TOKEN: process.env.NPM_TOKEN,
+  },
 });
 console.log();
 
