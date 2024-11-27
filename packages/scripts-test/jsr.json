@@ -1,8 +1,12 @@
 {
   "name": "@mjackson/scripts-test",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "exports": "./src/scripts-test.ts",
   "publish": {
-    "include": ["LICENSE", "README.md", "src/**/*.ts"]
+    "include": [
+      "LICENSE",
+      "README.md",
+      "src/**/*.ts"
+    ]
   }
 }
