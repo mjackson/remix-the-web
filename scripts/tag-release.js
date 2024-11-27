@@ -17,11 +17,11 @@ let packageName = process.argv[2];
 let releaseType = process.argv[3];
 
 if (packageName === undefined || releaseType === undefined) {
-  console.error('Usage: node version.js <packageName> <releaseType>');
+  console.error('Usage: node tag-release.js <packageName> <releaseType>');
   process.exit(1);
 }
 
-if (typeof packageName === 'string' && packageName.startsWith('@mjackson/')) {
+if (packageName.startsWith('@mjackson/')) {
   packageName = packageName.slice('@mjackson/'.length);
 }
 
@@ -36,7 +36,7 @@ if (status !== '') {
   process.exit(1);
 }
 
-console.log(`Tagging ${tag} ...`);
+console.log(`Tagging release ${tag} ...`);
 console.log();
 
 // 2) Update package.json with the new release version

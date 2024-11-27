@@ -8,13 +8,21 @@ import { isValidVersion } from './utils/semver.js';
 let packageName = process.argv[2];
 let version = process.argv[3];
 
-if (packageName === undefined || version === undefined) {
-  console.error('Usage: node release.js <packageName> <version>');
+if (packageName === undefined || (!packageName.includes('@') && version === undefined)) {
+  console.error(`Usage:
+    node publish-release.js <packageName> <version>
+    node publish-release.js <tag>`);
   process.exit(1);
 }
 
-if (typeof packageName === 'string' && packageName.startsWith('@mjackson/')) {
+if (packageName.startsWith('@mjackson/')) {
   packageName = packageName.slice('@mjackson/'.length);
+}
+
+if (packageName.includes('@')) {
+  let split = packageName.split('@');
+  packageName = split[0];
+  version = split[1];
 }
 
 let tag = `${packageName}@${version}`;
@@ -37,6 +45,9 @@ if (!currentTags.includes(tag)) {
   console.error(`Tag "${tag}" does not point to HEAD`);
   process.exit(1);
 }
+
+console.log(`Publishing release ${tag} ...`);
+console.log();
 
 // 3) Publish to npm
 let packageJson = readPackageJson(packageName);
@@ -68,6 +79,8 @@ if (hasJsrJson(packageName)) {
 
 // 5) Publish to GitHub Releases
 console.log(`Publishing ${tag} on GitHub Releases ...`);
-await createRelease(packageName, version);
+
+let releaseUrl = await createRelease(packageName, version);
+console.log(`Published at: ${releaseUrl}`);
 
 console.log();
