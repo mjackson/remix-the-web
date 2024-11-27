@@ -2,6 +2,18 @@
 
 This package is only for testing the version and publish scripts.
 
+## HEAD
+
+Testing again from CI.
+
+- one
+- two
+- three
+
+```ts
+console.log('hello world');
+```
+
 ## v0.3.0 (2024-11-27)
 
 Let's test everything from CI this time.
