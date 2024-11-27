@@ -245,6 +245,20 @@ export class SuperHeaders extends Headers {
   // Header-specific getters and setters
 
   /**
+   * The `Host` header field in a request provides the host and port information
+   * from the target URI, enabling the origin server to distinguish among
+   * resources while servicing requests for multiple host names on a single IP
+   * address.
+   *
+   * [MD `Host` Reference](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Host)
+   *
+   * [HTTP/1.1 Specification](https://datatracker.ietf.org/doc/html/rfc7230#section-5.4)
+   */
+  get host() {
+    return this.get('host');
+  }
+
+  /**
    * The `Accept-Language` header contains information about preferred natural language for the
    * response.
    *

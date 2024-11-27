@@ -16,7 +16,8 @@ run_benchmark() {
     local server_pid=$!
 
     # Wait for the server to start
-    sleep 2
+    # sleep 2
+    sleep 5
 
     wrk -t12 -c400 -d30s http://127.0.0.1:3000/
 
@@ -36,6 +37,9 @@ run_benchmark "node:http@$NODE_VERSION" \
 NODE_FETCH_SERVER_VERSION=$(node -e 'console.log(require("../package.json").version)')
 run_benchmark "node-fetch-server@$NODE_FETCH_SERVER_VERSION" \
   "node --import @swc-node/register/esm-register ./servers/node-fetch-server.ts"
+
+run_benchmark "create-fetch-server@$NODE_FETCH_SERVER_VERSION" \
+  "node --import @swc-node/register/esm-register ./servers/create-fetch-server.ts"
 
 EXPRESS_VERSION=$(node -e 'console.log(require("express/package.json").version)')
 run_benchmark "express@$EXPRESS_VERSION" \
