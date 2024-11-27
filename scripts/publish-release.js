@@ -58,7 +58,7 @@ if (packageJson.version !== version) {
   process.exit(1);
 }
 
-logAndExec(`pnpm publish --access public --no-git-checks`, {
+logAndExec(`npm publish --access public`, {
   cwd: getPackageDir(packageName),
 });
 console.log();
