@@ -2,6 +2,10 @@
 
 This package is only for testing the version and publish scripts.
 
+## HEAD
+
+Let's test everything from CI this time.
+
 ## v0.2.3 (2024-11-27)
 
 Testing JSR this time as well.
