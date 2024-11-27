@@ -2,6 +2,18 @@
 
 This package is only for testing the version and publish scripts.
 
+## HEAD
+
+Testing JSR this time as well.
+
+- one
+- two
+- three
+
+```ts
+console.log('hello world');
+```
+
 ## v0.2.2 (2024-11-27)
 
 More tests!
