@@ -1,6 +1,6 @@
 {
   "name": "@mjackson/scripts-test",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "exports": "./src/scripts-test.ts",
   "publish": {
     "include": [

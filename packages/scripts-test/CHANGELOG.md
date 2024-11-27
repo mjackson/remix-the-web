@@ -2,7 +2,7 @@
 
 This package is only for testing the version and publish scripts.
 
-## HEAD
+## v0.3.8 (2024-11-27)
 
 Testing again from CI.
 
