@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read
+      contents: write # Required for publishing the GitHub release.
       id-token: write # The OIDC ID token is used for authentication with JSR.
 
     steps:
