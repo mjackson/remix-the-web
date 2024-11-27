@@ -7,7 +7,8 @@
   },
   "scripts": {
     "clean": "git clean -fdX .",
-    "publish-release": "node ./scripts/publish-release.js",
+    "publish-release": "node --env-file .env ./scripts/publish-release.js",
+    "publish-release-ci": "node ./scripts/publish-release.js",
     "tag-release": "node ./scripts/tag-release.js",
     "test": "pnpm -r --workspace-concurrency 1 test"
   }

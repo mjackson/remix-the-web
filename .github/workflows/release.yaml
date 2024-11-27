@@ -26,4 +26,4 @@ jobs:
         run: pnpm install
 
       - name: Release
-        run: pnpm publish-release ${{ github.ref_name }}
+        run: pnpm publish-release-ci ${{ github.ref_name }}
