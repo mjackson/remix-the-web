@@ -1,7 +1,7 @@
 import * as cp from 'node:child_process';
 
 import { createRelease } from './utils/github-releases.js';
-import { getPackageDir, hasJsrJson, readJsrJson, readPackageJson } from './utils/packages.js';
+import { getPackageDir, readPackageJson } from './utils/packages.js';
 import { logAndExec } from './utils/process.js';
 import { isValidVersion } from './utils/semver.js';
 
@@ -64,24 +64,7 @@ logAndExec(`npm publish --access public`, {
 });
 console.log();
 
-// 4) Publish to jsr (if applicable)
-if (hasJsrJson(packageName)) {
-  let jsrJson = readJsrJson(packageName);
-  if (jsrJson.version !== version) {
-    console.error(
-      `Tag does not match jsr.json version: ${version} !== ${jsrJson.version} (${tag})`,
-    );
-    process.exit(1);
-  }
-
-  logAndExec(`pnpm dlx jsr publish`, {
-    cwd: getPackageDir(packageName),
-    env: process.env,
-  });
-  console.log();
-}
-
-// 5) Publish to GitHub Releases
+// 4) Publish to GitHub Releases
 console.log(`Publishing ${tag} on GitHub Releases ...`);
 let releaseUrl = await createRelease(packageName, version);
 console.log(`Published at: ${releaseUrl}`);

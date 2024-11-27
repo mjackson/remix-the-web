@@ -1,0 +1,25 @@
+on:
+  push:
+    tags:
+      - 'multipart-parser@[0-9]+.[0-9]+.[0-9]+'
+      - 'scripts-test@[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write # The OIDC ID token is used for authentication with JSR.
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Publish
+        run: npx jsr publish
