@@ -58,8 +58,6 @@ if (packageJson.version !== version) {
   process.exit(1);
 }
 
-console.log({ TYPEOF_NODE_AUTH_TOKEN: typeof process.env.NODE_AUTH_TOKEN });
-
 logAndExec(`npm publish --access public`, {
   cwd: getPackageDir(packageName),
   env: process.env,
@@ -78,6 +76,7 @@ if (hasJsrJson(packageName)) {
 
   logAndExec(`pnpm dlx jsr publish`, {
     cwd: getPackageDir(packageName),
+    env: process.env,
   });
   console.log();
 }
