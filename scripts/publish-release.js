@@ -61,6 +61,7 @@ if (packageJson.version !== version) {
 logAndExec(`pnpm publish --access public`, {
   cwd: getPackageDir(packageName),
 });
+console.log();
 
 // 4) Publish to jsr (if applicable)
 if (hasJsrJson(packageName)) {
@@ -75,11 +76,11 @@ if (hasJsrJson(packageName)) {
   logAndExec(`pnpm dlx jsr publish`, {
     cwd: getPackageDir(packageName),
   });
+  console.log();
 }
 
 // 5) Publish to GitHub Releases
 console.log(`Publishing ${tag} on GitHub Releases ...`);
-
 let releaseUrl = await createRelease(packageName, version);
 console.log(`Published at: ${releaseUrl}`);
 
