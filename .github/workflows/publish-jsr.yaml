@@ -21,5 +21,12 @@ jobs:
         with:
           node-version: 22
 
+      - name: Split tag name
+        env:
+          TAG: ${{ github.ref_name }}
+        id: tag
+        run: echo "::set-output name=package-name::${TAG%%@*}"
+
       - name: Publish
+        working-directory: 'packages/${{ steps.tag.outputs.package-name }}'
         run: npx jsr publish
