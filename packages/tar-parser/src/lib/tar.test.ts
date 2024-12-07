@@ -456,4 +456,106 @@ describe('tar-stream test cases', () => {
       ],
     ]);
   });
+
+  it('parses sparse.tar', async () => {
+    /* sparse.tar generated with:
+
+      truncate -s 32K sparsefile
+
+      # Insert multiple sparse data segments
+      echo -n "DATA1" | dd of=sparsefile bs=1 seek=0 conv=notrunc
+      echo -n "DATA2" | dd of=sparsefile bs=1 seek=8192 conv=notrunc
+      echo -n "DATA3" | dd of=sparsefile bs=1 seek=16384 conv=notrunc
+
+      tar --sparse -cf sparse.tar sparsefile
+    */
+    let blockSize = 4096;
+    let entries: { name: string; data: Uint8Array; header: TarHeader }[] = [];
+
+    await parseTar(readFixture(fixtures.sparse), async (entry) => {
+      let data = await entry.bytes();
+      entries.push({ name: entry.name, data, header: entry.header });
+    });
+    assert.equal(entries.length, 1);
+    const { name, data, header } = entries[0];
+    assert.equal(name, 'sparse');
+    assert.equal(data.length, blockSize * 8);
+    assert.deepEqual(header.sparseMap, [
+      {
+        offset: 0,
+        size: 4096,
+      },
+      {
+        offset: 8192,
+        size: 4096,
+      },
+      {
+        offset: 16384,
+        size: 4096,
+      },
+      {
+        offset: 32768,
+        size: 0,
+      },
+    ]);
+
+    let dec = new TextDecoder();
+
+    for (let i = 0; i < 3; i++) {
+      let exp = `DATA${i + 1}`;
+      assert.equal(
+        dec.decode(data.subarray(i * blockSize * 2, i * blockSize * 2 + exp.length)),
+        exp,
+      );
+    }
+  });
+
+  it('parses sparse-extended.tar', async () => {
+    /* sparse.tar generated with:
+
+      block_size=4096
+      truncate -s $((block_size*20)) sparse
+
+      for i in {1..20..2}; do
+        echo -n "DATA$i" | dd of=sparse bs=1 seek=$((i*block_size)) conv=notrunc
+      done
+
+      tar --sparse -cf sparse.tar sparse
+    */
+    let blockSize = 4096;
+    let entries: { name: string; data: Uint8Array; header: TarHeader }[] = [];
+
+    await parseTar(readFixture(fixtures.sparseExtended), async (entry) => {
+      let data = await entry.bytes();
+      entries.push({ name: entry.name, data, header: entry.header });
+    });
+    assert.equal(entries.length, 1);
+    const { name, data, header } = entries[0];
+    assert.equal(name, 'sparse');
+    assert.equal(data.length, blockSize * 20);
+    assert.deepEqual(header.sparseMap, [
+      { offset: 4096, size: 4096 },
+      { offset: 12288, size: 4096 },
+      { offset: 20480, size: 4096 },
+      { offset: 28672, size: 4096 },
+      { offset: 36864, size: 4096 },
+      { offset: 45056, size: 4096 },
+      { offset: 53248, size: 4096 },
+      { offset: 61440, size: 4096 },
+      { offset: 69632, size: 4096 },
+      { offset: 77824, size: 4096 },
+      { offset: 81920, size: 0 },
+    ]);
+
+    let dec = new TextDecoder();
+
+    for (let i = 1; i < 20; i += 2) {
+      let exp = `DATA${i}`;
+      assert.equal(dec.decode(data.subarray(i * blockSize, i * blockSize + exp.length)), exp);
+    }
+
+    for (let i = 0; i < 10; i++) {
+      assert.equal(data[i], 0);
+    }
+  });
 });

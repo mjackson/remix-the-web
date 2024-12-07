@@ -7,6 +7,8 @@ import {
   getOctal,
   getString,
   overflow,
+  parseOldGnuSparse,
+  parseOldGnuSparseExtension,
 } from './utils.ts';
 
 const TarBlockSize = 512;
@@ -32,7 +34,22 @@ export interface TarHeader {
   devmajor: number | null;
   devminor: number | null;
   pax: Record<string, string> | null;
+
+  // Old GNU sparse support
+  atime?: number | null;
+  ctime?: number | null;
+  volumeOffset?: number | null;
+  realSize?: number | null;
+  // sparse map contains of map of which bytes actually contain data
+  sparseMap?: { offset: number; size: number }[];
+  isExtended?: boolean;
 }
+
+const ZeroOffset = '0'.charCodeAt(0);
+const UstarMagic = new Uint8Array([0x75, 0x73, 0x74, 0x61, 0x72, 0x00]); // "ustar\0"
+const UstarVersion = new Uint8Array([ZeroOffset, ZeroOffset]); // "00"
+const GnuMagic = new Uint8Array([0x75, 0x73, 0x74, 0x61, 0x72, 0x20]); // "ustar "
+const GnuVersion = new Uint8Array([0x20, 0x00]); // " \0"
 
 const TarFileTypes: Record<string, string> = {
   '0': 'file',
@@ -48,13 +65,11 @@ const TarFileTypes: Record<string, string> = {
   '30': 'gnu-long-path',
   '55': 'pax-global-header',
   '72': 'pax-header',
+  ['D'.charCodeAt(0) - ZeroOffset]: 'dumpdir',
+  ['M'.charCodeAt(0) - ZeroOffset]: 'multivolume',
+  ['S'.charCodeAt(0) - ZeroOffset]: 'sparse',
+  ['V'.charCodeAt(0) - ZeroOffset]: 'volume',
 };
-
-const ZeroOffset = '0'.charCodeAt(0);
-const UstarMagic = new Uint8Array([0x75, 0x73, 0x74, 0x61, 0x72, 0x00]); // "ustar\0"
-const UstarVersion = new Uint8Array([ZeroOffset, ZeroOffset]); // "00"
-const GnuMagic = new Uint8Array([0x75, 0x73, 0x74, 0x61, 0x72, 0x20]); // "ustar "
-const GnuVersion = new Uint8Array([0x20, 0x00]); // " \0"
 
 export interface ParseTarHeaderOptions {
   /**
@@ -139,6 +154,10 @@ export function parseTarHeader(block: Uint8Array, options?: ParseTarHeaderOption
     // GNU format
   } else if (!allowUnknownFormat) {
     throw new TarParseError('Invalid tar header, unknown format');
+  }
+
+  if (header.type === 'sparse') {
+    parseOldGnuSparse(block, header);
   }
 
   return header;
@@ -314,6 +333,14 @@ export class TarParser {
 
     this.#header = parseTarHeader(block, this.#options);
 
+    if (this.#header.type === 'sparse' && this.#header.isExtended) {
+      while (this.#header.isExtended) {
+        if (this.#buffer!.length < TarBlockSize) break;
+        let extBlock = this.#read(TarBlockSize);
+        this.#header.isExtended = parseOldGnuSparseExtension(extBlock, this.#header);
+      }
+    }
+
     switch (this.#header.type) {
       case 'gnu-long-path':
       case 'gnu-long-link-path':
@@ -460,19 +487,60 @@ export class TarEntry {
    * The content of this entry buffered into a single typed array.
    */
   async bytes(): Promise<Uint8Array> {
-    if (this.#bodyUsed) {
+    if (this.bodyUsed) {
       throw new Error('Body is already consumed or is being consumed');
     }
 
     this.#bodyUsed = true;
 
-    let result = new Uint8Array(this.size);
-    let offset = 0;
-    for await (let chunk of this.#body) {
-      result.set(chunk, offset);
-      offset += chunk.length;
+    if (this.header.type === 'sparse' && this.header.sparseMap && this.header.realSize) {
+      const result = new Uint8Array(this.header.realSize);
+      const reader = this.body.getReader();
+      let leftover = new Uint8Array(0);
+
+      async function readExactly(size: number): Promise<Uint8Array> {
+        const chunk = new Uint8Array(size);
+        let bytesFilled = 0;
+
+        while (bytesFilled < size) {
+          if (leftover.length === 0) {
+            const { done, value } = await reader.read();
+            if (done) throw new Error('Unexpected end of sparse data');
+            leftover = value;
+          }
+
+          const needed = size - bytesFilled;
+          const toCopy = Math.min(needed, leftover.length);
+
+          chunk.set(leftover.subarray(0, toCopy), bytesFilled);
+          bytesFilled += toCopy;
+
+          leftover = leftover.subarray(toCopy);
+        }
+
+        return chunk;
+      }
+
+      for (const { offset, size } of this.header.sparseMap) {
+        const chunkData = await readExactly(size);
+        result.set(chunkData, offset);
+      }
+
+      return result;
     }
 
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    for await (let c of this.body) {
+      chunks.push(c);
+      total += c.length;
+    }
+    let result = new Uint8Array(total);
+    let pos = 0;
+    for (let c of chunks) {
+      result.set(c, pos);
+      pos += c.length;
+    }
     return result;
   }
 

@@ -1,3 +1,5 @@
+import type { TarHeader } from './tar';
+
 export function buffersEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
@@ -117,4 +119,42 @@ function parse256(buf: Uint8Array): number | null {
 export function overflow(size: number): number {
   size &= 511;
   return size && 512 - size;
+}
+
+export function parseOldGnuSparse(block: Uint8Array, header: TarHeader) {
+  const atime = getOctal(block, 345, 12);
+  const ctime = getOctal(block, 357, 12);
+  const volumeOffset = getOctal(block, 369, 12);
+  // skip unused at 381-385
+  const sparseMap: { offset: number; size: number }[] = [];
+  for (let i = 0; i < 4; i++) {
+    const o = getOctal(block, 386 + i * 24, 12);
+    const s = getOctal(block, 386 + i * 24 + 12, 12);
+    if (o !== null && s !== null && (o > 0 || s > 0)) {
+      sparseMap.push({ offset: o, size: s });
+    }
+  }
+  const isExtended = block[482] === 1;
+  const realSize = getOctal(block, 483, 12);
+
+  header.atime = atime;
+  header.ctime = ctime;
+  header.volumeOffset = volumeOffset;
+  header.sparseMap = sparseMap;
+  header.realSize = realSize || header.size;
+  header.isExtended = isExtended;
+}
+
+export function parseOldGnuSparseExtension(block: Uint8Array, header: TarHeader) {
+  // Each extension has 21 entries: offset/size pairs
+  // offset 0 to 503: 21 sparse entries * 24 bytes each
+  // offset 504: isextended (1 byte)
+  for (let i = 0; i < 21; i++) {
+    const o = getOctal(block, i * 24, 12);
+    const s = getOctal(block, i * 24 + 12, 12);
+    if (o !== null && s !== null && (o > 0 || s > 0)) {
+      header.sparseMap!.push({ offset: o, size: s });
+    }
+  }
+  return block[504] === 1;
 }
