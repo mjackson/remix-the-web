@@ -510,6 +510,23 @@ describe('tar-stream test cases', () => {
     }
   });
 
+  it('supports raw mode', async () => {
+    let blockSize = 4096;
+    let entries: { name: string; data: Uint8Array }[] = [];
+
+    let data: Uint8Array;
+    await parseTar(readFixture(fixtures.sparse), async (entry) => {
+      data = await entry.bytes({ raw: true });
+    });
+
+    let dec = new TextDecoder();
+
+    for (let i = 0; i < 3; i++) {
+      let exp = `DATA${i + 1}`;
+      assert.equal(dec.decode(data!.subarray(i * blockSize, i * blockSize + exp.length)), exp);
+    }
+  });
+
   it('parses sparse-extended.tar', async () => {
     /* sparse.tar generated with:
 

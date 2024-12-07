@@ -486,14 +486,19 @@ export class TarEntry {
   /**
    * The content of this entry buffered into a single typed array.
    */
-  async bytes(): Promise<Uint8Array> {
+  async bytes(options?: { raw?: boolean }): Promise<Uint8Array> {
     if (this.bodyUsed) {
       throw new Error('Body is already consumed or is being consumed');
     }
 
     this.#bodyUsed = true;
 
-    if (this.header.type === 'sparse' && this.header.sparseMap && this.header.realSize) {
+    if (
+      this.header.type === 'sparse' &&
+      this.header.sparseMap &&
+      this.header.realSize &&
+      !options?.raw
+    ) {
       const result = new Uint8Array(this.header.realSize);
       const reader = this.body.getReader();
       let leftover = new Uint8Array(0);
