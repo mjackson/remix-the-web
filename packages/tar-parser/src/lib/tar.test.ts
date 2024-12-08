@@ -460,15 +460,15 @@ describe('tar-stream test cases', () => {
   it('parses sparse.tar', async () => {
     /* sparse.tar generated with:
 
-      truncate -s 32K sparsefile
+          truncate -s 32K sparsefile
 
-      # Insert multiple sparse data segments
-      echo -n "DATA1" | dd of=sparsefile bs=1 seek=0 conv=notrunc
-      echo -n "DATA2" | dd of=sparsefile bs=1 seek=8192 conv=notrunc
-      echo -n "DATA3" | dd of=sparsefile bs=1 seek=16384 conv=notrunc
+          # Insert multiple sparse data segments
+          echo -n "DATA1" | dd of=sparsefile bs=1 seek=0 conv=notrunc
+          echo -n "DATA2" | dd of=sparsefile bs=1 seek=8192 conv=notrunc
+          echo -n "DATA3" | dd of=sparsefile bs=1 seek=16384 conv=notrunc
 
-      tar --sparse -cf sparse.tar sparsefile
-    */
+          tar --sparse -cf sparse.tar sparsefile
+        */
     let blockSize = 4096;
     let entries: { name: string; data: Uint8Array; header: TarHeader }[] = [];
 
@@ -530,15 +530,15 @@ describe('tar-stream test cases', () => {
   it('parses sparse-extended.tar', async () => {
     /* sparse.tar generated with:
 
-      block_size=4096
-      truncate -s $((block_size*20)) sparse
+          block_size=4096
+          truncate -s $((block_size*20)) sparse
 
-      for i in {1..20..2}; do
-        echo -n "DATA$i" | dd of=sparse bs=1 seek=$((i*block_size)) conv=notrunc
-      done
+          for i in {1..20..2}; do
+            echo -n "DATA$i" | dd of=sparse bs=1 seek=$((i*block_size)) conv=notrunc
+          done
 
-      tar --sparse -cf sparse.tar sparse
-    */
+          tar --sparse -cf sparse.tar sparse
+        */
     let blockSize = 4096;
     let entries: { name: string; data: Uint8Array; header: TarHeader }[] = [];
 
@@ -572,6 +572,49 @@ describe('tar-stream test cases', () => {
     }
 
     for (let i = 0; i < 10; i++) {
+      assert.equal(data[i], 0);
+    }
+  });
+
+  it('parses sparse-multiple-extended-headers.tar', async () => {
+    /* sparse.tar generated with:
+
+      block_size=4096
+      truncate -s $((block_size*26)) sparse
+
+      for i in {1..26..2}; do
+        echo -n "DATA$i" | dd of=sparse bs=1 seek=$((i*block_size)) conv=notrunc
+      done
+
+      tar --sparse -cf sparse.tar sparse
+    */
+    let blockSize = 4096;
+    let entries: { name: string; data: Uint8Array; header: TarHeader }[] = [];
+    const numHoles = 13;
+
+    await parseTar(readFixture(fixtures.sparseMultipleExtendedHeaders), async (entry) => {
+      let data = await entry.bytes();
+      entries.push({ name: entry.name, data, header: entry.header });
+    });
+    assert.equal(entries.length, 1);
+    const { name, data, header } = entries[0];
+    assert.equal(name, 'sparse');
+    assert.equal(data.length, blockSize * (numHoles * 2));
+    const expectedMap = Array.from({ length: numHoles }, (_, i) => ({
+      offset: (i + 1) * blockSize * 2 - blockSize,
+      size: blockSize,
+    }));
+    expectedMap.push({ offset: blockSize * numHoles * 2, size: 0 });
+    assert.deepEqual(header.sparseMap, expectedMap);
+
+    let dec = new TextDecoder();
+
+    for (let i = 1; i < numHoles * 2; i += 2) {
+      let exp = `DATA${i}`;
+      assert.equal(dec.decode(data.subarray(i * blockSize, i * blockSize + exp.length)), exp);
+    }
+
+    for (let i = 0; i < numHoles; i++) {
       assert.equal(data[i], 0);
     }
   });

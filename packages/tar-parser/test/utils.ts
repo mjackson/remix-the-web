@@ -23,6 +23,7 @@ export const fixtures = {
   space: path.resolve(fixturesDir, 'space.tar'),
   sparse: path.resolve(fixturesDir, 'sparse.tar'),
   sparseExtended: path.resolve(fixturesDir, 'sparse-extended.tar'),
+  sparseMultipleExtendedHeaders: path.resolve(fixturesDir, 'sparse-multiple-extended-headers.tar'),
   types: path.resolve(fixturesDir, 'types.tar'),
   unicodeBsd: path.resolve(fixturesDir, 'unicode-bsd.tar'),
   unicode: path.resolve(fixturesDir, 'unicode.tar'),

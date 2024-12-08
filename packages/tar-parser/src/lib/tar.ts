@@ -331,11 +331,13 @@ export class TarParser {
       return;
     }
 
-    this.#header = parseTarHeader(block, this.#options);
+    if (!this.#header?.isExtended) {
+      this.#header = parseTarHeader(block, this.#options);
+    }
 
     if (this.#header.type === 'sparse' && this.#header.isExtended) {
       while (this.#header.isExtended) {
-        if (this.#buffer!.length < TarBlockSize) break;
+        if (this.#buffer!.length < TarBlockSize) return;
         let extBlock = this.#read(TarBlockSize);
         this.#header.isExtended = parseOldGnuSparseExtension(extBlock, this.#header);
       }
