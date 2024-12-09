@@ -60,15 +60,15 @@ const TarFileTypes: Record<string, string> = {
   '5': 'directory',
   '6': 'fifo',
   '7': 'contiguous-file',
+  '20': 'dumpdir',
   '27': 'gnu-long-link-path',
   '28': 'gnu-long-path',
+  '29': 'multivolume',
   '30': 'gnu-long-path',
+  '35': 'sparse',
+  '38': 'volume',
   '55': 'pax-global-header',
   '72': 'pax-header',
-  ['D'.charCodeAt(0) - ZeroOffset]: 'dumpdir',
-  ['M'.charCodeAt(0) - ZeroOffset]: 'multivolume',
-  ['S'.charCodeAt(0) - ZeroOffset]: 'sparse',
-  ['V'.charCodeAt(0) - ZeroOffset]: 'volume',
 };
 
 export interface ParseTarHeaderOptions {
