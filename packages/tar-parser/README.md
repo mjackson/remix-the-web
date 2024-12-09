@@ -6,7 +6,7 @@
 
 - Runs anywhere JavaScript runs
 - Built on the standard [web Streams API](https://developer.mozilla.org/en-US/docs/Web/API/Streams_API), so it's composable with `fetch()` streams
-- Supports POSIX, GNU, and PAX tar formats
+- Supports POSIX, GNU, PAX tar formats, and old GNU sparse files
 - Memory efficient and does not buffer anything in normal usage
 - 0 dependencies
 
@@ -34,6 +34,8 @@ await parseTar(response.body.pipeThrough(new DecompressionStream('gzip')), (entr
 });
 ```
 
+### Handling Different Filename Encodings
+
 If you're parsing an archive with filename encodings other than UTF-8, use the `filenameEncoding` option:
 
 ```ts
@@ -43,6 +45,34 @@ await parseTar(response.body, { filenameEncoding: 'latin1' }, (entry) => {
   console.log(entry.name, entry.size);
 });
 ```
+
+### Working with Sparse Files
+
+For sparse files, tar-parser reconstructs the file by default, filling in zeroed regions as indicated by the sparse map:
+
+```ts
+await parseTar(response.body, async (entry) => {
+  if (entry.header.type === 'sparse') {
+    // Fully reconstructed sparse file
+    let reconstructedData = await entry.bytes();
+    console.log(entry.name, reconstructedData.length);
+  }
+});
+```
+
+If you prefer the raw data chunks as they appear in the archive (without reconstructing zeros), you can call `entry.bytes({ raw: true })`:
+
+```ts
+await parseTar(response.body, async (entry) => {
+  if (entry.header.type === 'sparse') {
+    // Raw archived data segments only, no sparse reconstruction
+    let rawData = await entry.bytes({ raw: true });
+    console.log(entry.name, rawData.length);
+  }
+});
+```
+
+This allows you to save memory by only working with blocks that actually contain data.
 
 ## Benchmark
 
