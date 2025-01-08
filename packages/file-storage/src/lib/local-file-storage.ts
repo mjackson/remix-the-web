@@ -104,7 +104,7 @@ export class LocalFileStorage implements FileStorage {
     let hash = crypto.createHash('sha256').update(key).digest('hex');
     let shardDir = hash.slice(0, 8);
     let directory = path.join(this.#dirname, shardDir);
-    let filename = `${hash}.bin`;
+    let filename = `${hash.slice(8)}.bin`;
     let metaname = `${hash}.meta.json`;
 
     return {
