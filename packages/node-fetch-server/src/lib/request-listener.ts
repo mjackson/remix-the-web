@@ -13,8 +13,15 @@ export interface RequestListenerOptions {
    * ```ts
    * createRequestListener(handler, { host: process.env.HOST })
    * ```
+   *
+   * Optionally a function may be provided to derive the host of the URL from the Request
+   * initialization options:
+   *
+   * ```ts
+   * createRequestListener(handler, { host: (request) => request.headers.get('X-Forwarded-Host') })
+   * ```
    */
-  host?: string;
+  host?: string | ((headers: Headers) => string | undefined | null);
   /**
    * An error handler that determines the response when the request handler throws an error. By
    * default a 500 Internal Server Error response will be sent.
@@ -23,9 +30,10 @@ export interface RequestListenerOptions {
   /**
    * Overrides the protocol of the incoming request URL. By default the request URL protocol is
    * derived from the connection protocol. So e.g. when serving over HTTPS (using
-   * `https.createServer()`), the request URL will begin with `https:`.
+   * `https.createServer()`), the request URL will begin with `https:`. Optionally a function
+   * may be provided to derive the protocol of the URL from the Request initialization options.
    */
-  protocol?: string;
+  protocol?: string | ((headers: Headers, socketIsEncrypted: boolean) => string | undefined | null);
 }
 
 /**
@@ -130,12 +138,30 @@ export function createRequest(
   let method = req.method ?? 'GET';
   let headers = createHeaders(req);
 
-  let protocol =
-    options?.protocol ?? ('encrypted' in req.socket && req.socket.encrypted ? 'https:' : 'http:');
-  let host = options?.host ?? headers.get('Host') ?? 'localhost';
-  let url = new URL(req.url!, `${protocol}//${host}`);
+  let host = headers.get('Host') ?? 'localhost';
+  if (typeof options?.host === 'function') {
+    const dynamicHost = options.host(headers);
+    if (dynamicHost) {
+      host = dynamicHost;
+    }
+  } else if (typeof options?.host === 'string') {
+    host = options.host;
+  }
+
+  let socketIsEncrypted = !!('encrypted' in req.socket && req.socket.encrypted);
+  let protocol = socketIsEncrypted ? 'https:' : 'http:';
+
+  if (typeof options?.protocol === 'function') {
+    let dynamicProto = options.protocol(headers, socketIsEncrypted);
+    if (dynamicProto) {
+      protocol = dynamicProto;
+    }
+  } else if (typeof options?.protocol === 'string') {
+    protocol = options.protocol;
+  }
 
   let init: RequestInit = { method, headers, signal: controller.signal };
+  let url = new URL(req.url!, `${protocol}//${host}`);
 
   if (method !== 'GET' && method !== 'HEAD') {
     init.body = new ReadableStream({
