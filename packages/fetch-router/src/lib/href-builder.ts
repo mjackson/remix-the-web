@@ -1,4 +1,11 @@
-import { AnyRoute, Route, MiddlewareRoute, PrefixRoute, RendererRoute } from './router.js';
+import {
+  AnyRoute,
+  Route,
+  MiddlewareRoute,
+  PrefixRoute,
+  RendererRoute,
+  createRoutes,
+} from './router.js';
 import {
   RoutePattern,
   ExtractHostname,
@@ -13,12 +20,107 @@ import {
   OptionalPathnameParamName,
 } from './route-params.js';
 
+// let routes = [
+//   // [{ type: 'route', pattern: '/blog' }],
+//   [{ type: 'prefix', pattern: '/app' }, { type: 'route', pattern: '/blog' }, { type: 'route', pattern: ':slug' }],
+//   [{ type: 'prefix', pattern: '/app' }, { type: 'route', pattern: '/blog' }, { type: 'route', pattern: 'edit' }],
+//   [{ type: 'prefix', pattern: '/app' }, { type: 'route', pattern: '/blog' }, { type: 'route', pattern: 'new' }],
+//   [{ type: 'prefix', pattern: '/app' }, { type: 'prefix', pattern: '/users' }, { type: 'route', pattern: ':id' }],
+//   [null, { type: 'prefix', pattern: '/app' }, { type: 'prefix', pattern: '/users' }, { type: 'route', pattern: ':id' }],
+// ]
+
+type R = [['/app', '/blog/:slug'], ['/app', '/blog/edit'], ['/app', 'admin', '/']];
+
+let routes = createRoutes(({ mount, route, use }) => [
+  // route('/', () => {
+  //   return new Response('home');
+  // }),
+  mount('/app', ({ mount, route, use }) => [
+    route('/blog/:slug', () => {
+      return new Response('blog post');
+    }),
+    route('/blog/edit', () => {
+      return new Response('blog edit');
+    }),
+    mount('admin', ({ route }) => [
+      route('/', () => {
+        return new Response('blog admin');
+      }),
+    ]),
+  ]),
+  // use([], ({ route }) => [
+  //   route('/dashboard', () => {
+  //     return new Response('dashboard');
+  //   }),
+  // ]),
+]);
+
+type ParentRoute<C extends ReadonlyArray<AnyRoute>> =
+  | MiddlewareRoute<C>
+  | PrefixRoute<any, C>
+  | RendererRoute<C>;
+
+type X = FlattenRoutes<typeof routes>;
+//   ^?
+
 // prettier-ignore
-export type RoutePatterns<T extends ReadonlyArray<AnyRoute>, B extends string = '/'> =
+type FlattenRoutes<T extends ReadonlyArray<AnyRoute>, ParentInputs extends string[] = []> =
+  T extends readonly [infer L extends AnyRoute, ...infer R extends ReadonlyArray<AnyRoute>] ?
+    R extends [] ? FlattenRoutes_<L, ParentInputs> :
+    // @ts-expect-error
+    [...FlattenRoutes_<L, ParentInputs>, ...FlattenRoutes<R, ParentInputs>] :
+  [];
+
+// prettier-ignore
+type FlattenRoutes_<T extends AnyRoute, ParentInputs extends string[]> =
+  T extends Route<infer I> ? [[...ParentInputs, I]] :
+  T extends PrefixRoute<infer I, infer C> ? FlattenRoutes<C, [...ParentInputs, I]> :
+  T extends ParentRoute<infer C> ? FlattenRoutes<C, ParentInputs> :
+  never;
+
+type CollectPatterns<T> =
+  T extends ReadonlyArray<infer Items>
+    ? CollectPatternsFromArray<Items>
+    : T extends Route<infer Pattern>
+      ? [[Pattern]]
+      : T extends PrefixRoute<infer Prefix, infer Children>
+        ? [[Prefix, ...CollectPatternsFromArray<Children>[number]]]
+        : T extends MiddlewareRoute<infer Children>
+          ? CollectPatternsFromArray<Children>
+          : T extends RendererRoute<infer Children>
+            ? CollectPatternsFromArray<Children>
+            : never;
+
+type CollectPatternsFromArray<T> =
+  T extends ReadonlyArray<any>
+    ? T extends [infer First, ...infer Rest]
+      ? [...CollectPatterns<First>, ...CollectPatternsFromArray<Rest>]
+      : []
+    : CollectPatterns<T>;
+
+// prettier-ignore
+type FlattenRoute<T extends AnyRoute> =
+  T extends Route<infer I> ? [{ type: 'route'; pattern: I }] :
+  T extends MiddlewareRoute<infer C> ? FlattenRoutes<C> :
+  // T extends PrefixRoute<infer I, infer C> ? [{ type: 'prefix'; pattern: I }, ...FlattenRoutes<C>] :
+  T extends RendererRoute<infer C> ? FlattenRoutes<C> :
+  never;
+
+// Then process the flattened structure
+type ProcessPatterns<T extends any[], B extends string = '/'> = T extends [infer L, ...infer R]
+  ? L extends { type: 'route'; pattern: infer P }
+    ? JoinPatterns<B, P> | ProcessPatterns<R, B>
+    : L extends { type: 'prefix'; pattern: infer P }
+      ? ProcessPatterns<R, JoinPatterns<B, P>>
+      : ProcessPatterns<R, B>
+  : never;
+
+// prettier-ignore
+export type RoutePatterns<T extends ReadonlyArray<AnyRoute>, B extends string = '/', Limit = 10> =
   T extends [infer L extends AnyRoute, ...infer R extends ReadonlyArray<AnyRoute>] ?
     R extends [] ? RoutePatterns_<L, B> :
     RoutePatterns_<L, B> | RoutePatterns<R, B> :
-  never
+  never;
 
 // prettier-ignore
 type RoutePatterns_<T extends AnyRoute, B extends string> =
