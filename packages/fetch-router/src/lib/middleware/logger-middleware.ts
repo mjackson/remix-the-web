@@ -1,4 +1,4 @@
-import { Middleware } from '../middleware.js';
+import { Middleware } from '../middleware.ts';
 
 export interface LoggerMiddlewareOptions {
   /**

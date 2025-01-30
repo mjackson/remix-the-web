@@ -1,8 +1,8 @@
-import { Assert, Equal } from './spec-helpers.js';
+import { Assert, Equal } from './spec-helpers.ts';
 
-import { Params } from './params.js';
-import { ParamsString, SearchParamsString } from './params-string.js';
-import { SearchParams } from './search-params.js';
+import { Params } from './params.ts';
+import { ParamsString, SearchParamsString } from './params-string.ts';
+import { SearchParams } from './search-params.ts';
 
 type ParamsStringSpec = [
   Assert<Equal<ParamsString<Params>, '/'>>,

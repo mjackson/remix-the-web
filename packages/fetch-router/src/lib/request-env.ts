@@ -1,7 +1,7 @@
-import { ContextProvider } from './context.js';
-import { Params } from './params.js';
-import { SearchParams } from './search-params.js';
-import { Renderer, DefaultRendererValueType } from './renderer.js';
+import { ContextProvider } from './context.ts';
+import { Params } from './params.ts';
+import { SearchParams } from './search-params.ts';
+import { Renderer, DefaultRendererValueType } from './renderer.ts';
 
 type RenderFunction<T> = Renderer<T>['render'];
 

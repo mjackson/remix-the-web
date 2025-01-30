@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { Assert, Equal } from '../../test/spec-helpers.js';
+import { Assert, Equal } from '../../test/spec-helpers.ts';
 import {
   HostnameParamName,
   PathnameParamName,
   OptionalHostnameParamName,
   OptionalPathnameParamName,
   SearchParamName,
-} from './route-params.js';
+} from './route-params.ts';
 
 type HostnameParamNameSpec = [
   Assert<Equal<HostnameParamName<''>, never>>,

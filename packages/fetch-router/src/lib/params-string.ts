@@ -1,7 +1,7 @@
 import { String, Union } from 'ts-toolbelt';
 
-import { Params } from './params.js';
-import { SearchParams } from './search-params.js';
+import { Params } from './params.ts';
+import { SearchParams } from './search-params.ts';
 
 /**
  * A string literal type representing the hostname and pathname parameters of a route pattern.

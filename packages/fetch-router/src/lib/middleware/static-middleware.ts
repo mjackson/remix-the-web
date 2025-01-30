@@ -3,7 +3,7 @@ import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import { openFile } from '@mjackson/lazy-file/fs';
 
-import { Middleware } from '../middleware.js';
+import { Middleware } from '../middleware.ts';
 
 interface StaticMiddlewareOptions {
   /**

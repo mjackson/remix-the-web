@@ -1,7 +1,7 @@
 import * as assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 
-import { createContext, ContextProvider } from './context.js';
+import { createContext, ContextProvider } from './context.ts';
 
 describe('context', () => {
   it('creates a context object with an undefined default value by default', () => {

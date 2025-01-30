@@ -1,12 +1,12 @@
 // import * as assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { Assert, Equal } from '../../test/spec-helpers.js';
-import { Params } from './params.js';
-import { createRenderer } from './renderer.js';
-import { RouteHandler } from './route-handler.js';
-import { Router, createRoutes } from './router.js';
-import { SearchParams } from './search-params.js';
+import { Assert, Equal } from '../../test/spec-helpers.ts';
+import { Params } from './params.ts';
+import { createRenderer } from './renderer.ts';
+import { RouteHandler } from './route-handler.ts';
+import { Router, createRoutes } from './router.ts';
+import { SearchParams } from './search-params.ts';
 
 const NumberRenderer = createRenderer((value: number, init) => {
   let body = value.toString();

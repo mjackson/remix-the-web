@@ -1,14 +1,14 @@
-export { type Context, createContext, ContextProvider } from './lib/context.js';
-export { type Middleware, type NextFunction } from './lib/middleware.js';
-export { type ParamsInit, Params } from './lib/params.js';
-export { type Renderer, createRenderer, DefaultRenderer } from './lib/renderer.js';
-export { type RouteArg, type RouteHandler as RouteHandler } from './lib/route-handler.js';
+export { type Context, createContext, ContextProvider } from './lib/context.ts';
+export { type Middleware, type NextFunction } from './lib/middleware.ts';
+export { type ParamsInit, Params } from './lib/params.ts';
+export { type Renderer, createRenderer, DefaultRenderer } from './lib/renderer.ts';
+export { type RouteArg, type RouteHandler as RouteHandler } from './lib/route-handler.ts';
 export {
   type RoutePatternParts,
   type RoutePatternOptions,
   RoutePattern,
   RoutePatternMatch,
-} from './lib/route-pattern.js';
+} from './lib/route-pattern.ts';
 export {
   type AnyRoute,
   type Route,
@@ -18,5 +18,5 @@ export {
   type Router,
   createRouter,
   createRoutes,
-} from './lib/router.js';
-export { type SearchParamsInit, SearchParams } from './lib/search-params.js';
+} from './lib/router.ts';
+export { type SearchParamsInit, SearchParams } from './lib/search-params.ts';

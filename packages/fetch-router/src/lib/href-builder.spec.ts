@@ -2,9 +2,9 @@
 import { describe, it } from 'node:test';
 import * as assert from 'node:assert/strict';
 
-import { createHrefBuilder } from './href-builder.js';
-import { Route, MiddlewareRoute, PrefixRoute } from './router.js';
-import { Assert, Equal, Pretty } from './spec-helpers.js';
+import { createHrefBuilder } from './href-builder.ts';
+import { Route, MiddlewareRoute, PrefixRoute } from './router.ts';
+import { Assert, Equal, Pretty } from './spec-helpers.ts';
 
 describe('href builder', () => {
   it('provides type hints when no routes are provided', () => {

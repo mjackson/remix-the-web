@@ -1,6 +1,6 @@
 import { openFile } from '@mjackson/lazy-file/fs';
 
-import { Middleware } from '../middleware.js';
+import { Middleware } from '../middleware.ts';
 
 export interface FaviconMiddlewareOptions {
   /**

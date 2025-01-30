@@ -1,9 +1,9 @@
 import { Object } from 'ts-toolbelt';
 
-import { Middleware } from './middleware.js';
-import { Renderer, DefaultRenderer } from './renderer.js';
-import { AnyRoute, MiddlewareRoute, RenderRoute, Route } from './router.js';
-import { RoutePatternMatch } from './route-pattern.js';
+import { Middleware } from './middleware.ts';
+import { Renderer, DefaultRenderer } from './renderer.ts';
+import { AnyRoute, MiddlewareRoute, RenderRoute, Route } from './router.ts';
+import { RoutePatternMatch } from './route-pattern.ts';
 
 export interface RouteMatch<T> {
   match: RoutePatternMatch<any>;

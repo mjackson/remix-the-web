@@ -2,8 +2,8 @@
 import * as assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { Assert, Equal } from '../../test/spec-helpers.js';
-import { SearchParams } from './search-params.js';
+import { Assert, Equal } from '../../test/spec-helpers.ts';
+import { SearchParams } from './search-params.ts';
 
 describe('SearchParams', () => {
   it('has() returns true for known params', () => {

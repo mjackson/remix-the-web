@@ -1,11 +1,11 @@
 import * as assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { Assert, Equal } from '../../test/spec-helpers.js';
+import { Assert, Equal } from '../../test/spec-helpers.ts';
 
-import { createRoutes } from './router.js';
-import { matchRoutes } from './route-matching.js';
-import { Middleware } from './middleware.js';
+import { createRoutes } from './router.ts';
+import { matchRoutes } from './route-matching.ts';
+import { Middleware } from './middleware.ts';
 
 describe('matchRoutes', () => {
   it('matches a route', () => {

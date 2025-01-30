@@ -1,14 +1,14 @@
-import { Middleware } from './middleware.js';
-import { Params } from './params.js';
-import { Renderer, DefaultRenderer, createRenderer } from './renderer.js';
-import { RouteHandler } from './route-handler.js';
+import { Middleware } from './middleware.ts';
+import { Params } from './params.ts';
+import { Renderer, DefaultRenderer, createRenderer } from './renderer.ts';
+import { RouteHandler } from './route-handler.ts';
 import {
   RoutePattern,
   RoutePatternParamName,
   RoutePatternSearchParamName,
   joinPatterns,
-} from './route-pattern.js';
-import { SearchParams } from './search-params.js';
+} from './route-pattern.ts';
+import { SearchParams } from './search-params.ts';
 
 type DefaultRendererValueType = typeof DefaultRenderer extends Renderer<infer T> ? T : never;
 

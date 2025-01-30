@@ -1,14 +1,14 @@
-import { Middleware } from './middleware.js';
-import { Params, JoinParams } from './params.js';
-import { isRenderer, Renderer } from './renderer.js';
-import { RouteHandler } from './route-handler.js';
+import { Middleware } from './middleware.ts';
+import { Params, JoinParams } from './params.ts';
+import { isRenderer, Renderer } from './renderer.ts';
+import { RouteHandler } from './route-handler.ts';
 import {
   JoinPatterns,
   RoutePattern,
   RoutePatternParams,
   RoutePatternSearchParams,
-} from './route-pattern.js';
-import { SearchParams, JoinSearchParams } from './search-params.js';
+} from './route-pattern.ts';
+import { SearchParams, JoinSearchParams } from './search-params.ts';
 
 export type AnyRoute =
   | Route<any>
@@ -114,7 +114,7 @@ export function createRoutes<const C extends AnyRoute[]>(callback?: RouterCallba
   return callback?.(new Router()) ?? ([] as any);
 }
 
-import { createRenderer } from './renderer.js';
+import { createRenderer } from './renderer.ts';
 
 let NumberRenderer = createRenderer(
   (value: number, init) =>

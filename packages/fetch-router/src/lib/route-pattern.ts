@@ -1,13 +1,13 @@
-import { Params } from './params.js';
+import { Params } from './params.ts';
 import {
   HostnameParamName,
   OptionalHostnameParamName,
   OptionalPathnameParamName,
   PathnameParamName,
   SearchParamName,
-} from './route-params.js';
-import { SearchParams } from './search-params.js';
-import { warning } from './warning.js';
+} from './route-params.ts';
+import { SearchParams } from './search-params.ts';
+import { warning } from './warning.ts';
 
 export interface RoutePatternParts {
   protocol: string;

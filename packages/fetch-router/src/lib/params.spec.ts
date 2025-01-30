@@ -2,8 +2,8 @@
 import * as assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { Assert, Equal } from '../../test/spec-helpers.js';
-import { Params } from './params.js';
+import { Assert, Equal } from '../../test/spec-helpers.ts';
+import { Params } from './params.ts';
 
 type ParamsVarianceSpec = [
   // specific params are assignable to generic params

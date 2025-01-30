@@ -1,14 +1,14 @@
-import { Middleware, NextFunction } from './middleware.js';
-import { Params, JoinParams } from './params.js';
-import { isRenderer, Renderer } from './renderer.js';
-import { RouteHandler } from './route-handler.js';
+import { Middleware, NextFunction } from './middleware.ts';
+import { Params, JoinParams } from './params.ts';
+import { isRenderer, Renderer } from './renderer.ts';
+import { RouteHandler } from './route-handler.ts';
 import {
   JoinPatterns,
   RoutePattern,
   RoutePatternParams,
   RoutePatternSearchParams,
-} from './route-pattern.js';
-import { SearchParams, JoinSearchParams } from './search-params.js';
+} from './route-pattern.ts';
+import { SearchParams, JoinSearchParams } from './search-params.ts';
 
 export type AnyRoute =
   | Route<any>
@@ -101,7 +101,7 @@ export function createRoutes<const C extends AnyRoute[]>(callback?: RouterCallba
   return callback?.(new Router()) ?? ([] as any);
 }
 
-import { createRenderer } from './renderer.js';
+import { createRenderer } from './renderer.ts';
 
 let NumberRenderer = createRenderer(
   (value: number, init) =>
@@ -114,7 +114,7 @@ let NumberRenderer = createRenderer(
     }),
 );
 
-import { ParamsString, SearchParamsString } from './params-string.js';
+import { ParamsString, SearchParamsString } from './params-string.ts';
 
 export type RouterWithParams<
   P extends Params,
@@ -162,7 +162,6 @@ let routes = createRoutes(({ mount, route }) => [
 // prettier-ignore
 type RoutePatterns<T extends AnyRoute[]> =
   T extends [infer L extends AnyRoute, ...infer R extends AnyRoute[]] ?
-    R extends [] ? RoutePatterns_<L> :
     RoutePatterns_<L> | RoutePatterns<R> :
   never;
 
@@ -184,8 +183,8 @@ export function createHrefBuilder<T extends AnyRoute[]>(): HrefBuilder<RoutePatt
 
 let href = createHrefBuilder<typeof routes>();
 
-import { InitialContext, ContextProvider } from './context.js';
-import { RequestEnv } from './request-env.js';
+import { InitialContext, ContextProvider } from './context.ts';
+import { RequestEnv } from './request-env.ts';
 
 export interface RequestHandlerOptions {
   initialContext?: InitialContext;

@@ -1,4 +1,4 @@
-import { ParamsInit, Params } from './params.js';
+import { ParamsInit, Params } from './params.ts';
 
 export type SearchParamsInit<T extends string = string> = ParamsInit<T>;
 

@@ -1,24 +1,91 @@
-import { AnyRoute, Route, MiddlewareRoute, PrefixRoute, RendererRoute } from './router.js';
+import {
+  AnyRoute,
+  Route,
+  MiddlewareRoute,
+  PrefixRoute,
+  RendererRoute,
+  createRoutes,
+} from './router.ts';
 import {
   RoutePattern,
   ExtractHostname,
   ExtractPathname,
   ExtractSearch,
   JoinPatterns,
-} from './route-pattern.js';
+} from './route-pattern.ts';
 import {
   HostnameParamName,
   PathnameParamName,
   OptionalHostnameParamName,
   OptionalPathnameParamName,
-} from './route-params.js';
+} from './route-params.ts';
+
+let routes = createRoutes(({ mount, route, use }) => [
+  route('/', () => {
+    return new Response('home');
+  }),
+  route('/foo', () => {
+    return new Response('home');
+  }),
+  mount('/app', ({ mount, route, use }) => [
+    route('/blog/:slug', () => {
+      return new Response('blog post');
+    }),
+    route('/blog/edit', () => {
+      return new Response('blog edit');
+    }),
+    mount('admin', ({ route }) => [
+      route('/', () => {
+        return new Response('blog admin');
+      }),
+    ]),
+  ]),
+  use([], ({ route }) => [
+    route('/dashboard', () => {
+      return new Response('dashboard');
+    }),
+  ]),
+]);
+
+type X = CollectInputs<typeof routes>;
+//   ^?
+
+// prettier-ignore
+type CollectInputs<T extends ReadonlyArray<AnyRoute>, ParentInputs extends string[] = []> =
+  T extends readonly [infer L extends AnyRoute, ...infer R extends ReadonlyArray<AnyRoute>] ?
+    CollectInputs_<L, ParentInputs> | CollectInputs<R, ParentInputs> :
+  never;
+
+// prettier-ignore
+type CollectInputs_<T extends AnyRoute, ParentInputs extends string[]> =
+  T extends Route<infer T> ? [...ParentInputs, T] :
+  T extends MiddlewareRoute<infer C> ? CollectInputs<C> :
+  T extends PrefixRoute<infer T, infer C> ? CollectInputs<C, [...ParentInputs, T]> :
+  T extends RendererRoute<infer C> ? CollectInputs<C> :
+  never;
+
+// prettier-ignore
+type FlattenRoute<T extends AnyRoute> =
+  T extends Route<infer I> ? [{ type: 'route'; pattern: I }] :
+  T extends MiddlewareRoute<infer C> ? FlattenRoutes<C> :
+  // T extends PrefixRoute<infer I, infer C> ? [{ type: 'prefix'; pattern: I }, ...FlattenRoutes<C>] :
+  T extends RendererRoute<infer C> ? FlattenRoutes<C> :
+  never;
+
+// Then process the flattened structure
+type ProcessPatterns<T extends any[], B extends string = '/'> = T extends [infer L, ...infer R]
+  ? L extends { type: 'route'; pattern: infer P }
+    ? JoinPatterns<B, P> | ProcessPatterns<R, B>
+    : L extends { type: 'prefix'; pattern: infer P }
+      ? ProcessPatterns<R, JoinPatterns<B, P>>
+      : ProcessPatterns<R, B>
+  : never;
 
 // prettier-ignore
 export type RoutePatterns<T extends ReadonlyArray<AnyRoute>, B extends string = '/'> =
   T extends [infer L extends AnyRoute, ...infer R extends ReadonlyArray<AnyRoute>] ?
-    R extends [] ? RoutePatterns_<L, B> :
     RoutePatterns_<L, B> | RoutePatterns<R, B> :
-  never
+  never;
 
 // prettier-ignore
 type RoutePatterns_<T extends AnyRoute, B extends string> =
@@ -26,7 +93,7 @@ type RoutePatterns_<T extends AnyRoute, B extends string> =
   T extends MiddlewareRoute<infer C> ? RoutePatterns<C, B> :
   T extends PrefixRoute<infer I, infer C> ? RoutePatterns<C, JoinPatterns<B, I>> :
   T extends RendererRoute<infer C> ? RoutePatterns<C, B> :
-  never
+  never;
 
 // prettier-ignore
 export type HrefBuilderParams<T extends string> =

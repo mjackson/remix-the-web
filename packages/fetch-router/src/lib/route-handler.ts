@@ -1,7 +1,7 @@
-import { Params } from './params.js';
-import { DefaultRendererValueType } from './renderer.js';
-import { RequestEnv } from './request-env.js';
-import { SearchParams } from './search-params.js';
+import { Params } from './params.ts';
+import { DefaultRendererValueType } from './renderer.ts';
+import { RequestEnv } from './request-env.ts';
+import { SearchParams } from './search-params.ts';
 
 /**
  * A function that handles a request to a specific route.
