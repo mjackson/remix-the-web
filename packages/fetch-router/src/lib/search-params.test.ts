@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import * as assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { Assert, Equal } from '../../test/spec-helpers.ts';
+import type { Assert, Equal } from '../../test/utils.ts';
+
 import { SearchParams } from './search-params.ts';
 
 describe('SearchParams', () => {
@@ -14,7 +14,7 @@ describe('SearchParams', () => {
 
   it('has() returns a boolean for unknown params', () => {
     let params = new SearchParams({ id: 'remix' });
-    let test = params.has('name');
+    let test = params.has('unknown');
     type T = Assert<Equal<typeof test, boolean>>;
   });
 
@@ -26,7 +26,7 @@ describe('SearchParams', () => {
 
   it('get() returns string | null for unknown params', () => {
     let params = new SearchParams({ id: 'remix' });
-    let test = params.get('name');
+    let test = params.get('unknown');
     type T = Assert<Equal<typeof test, string | null>>;
   });
 

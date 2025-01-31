@@ -111,9 +111,3 @@ function isIterable<T>(obj: unknown): obj is Iterable<T> {
     typeof obj[Symbol.iterator] === 'function'
   );
 }
-
-// prettier-ignore
-export type JoinParams<A extends Params, B extends Params> = Params<
-  (A extends Params<infer R> ? R : never) | (B extends Params<infer R> ? R : never),
-  (A extends Params<infer _, infer O> ? O : never) | (B extends Params<infer _, infer O> ? O : never)
-> & {};

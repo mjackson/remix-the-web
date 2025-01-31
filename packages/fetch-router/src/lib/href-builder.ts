@@ -3,7 +3,7 @@ import {
   Route,
   MiddlewareRoute,
   PrefixRoute,
-  RendererRoute,
+  RenderRoute,
   createRoutes,
 } from './router.ts';
 import {
@@ -61,7 +61,7 @@ type CollectInputs_<T extends AnyRoute, ParentInputs extends string[]> =
   T extends Route<infer T> ? [...ParentInputs, T] :
   T extends MiddlewareRoute<infer C> ? CollectInputs<C> :
   T extends PrefixRoute<infer T, infer C> ? CollectInputs<C, [...ParentInputs, T]> :
-  T extends RendererRoute<infer C> ? CollectInputs<C> :
+  T extends RenderRoute<infer C> ? CollectInputs<C> :
   never;
 
 // prettier-ignore
@@ -69,7 +69,7 @@ type FlattenRoute<T extends AnyRoute> =
   T extends Route<infer I> ? [{ type: 'route'; pattern: I }] :
   T extends MiddlewareRoute<infer C> ? FlattenRoutes<C> :
   // T extends PrefixRoute<infer I, infer C> ? [{ type: 'prefix'; pattern: I }, ...FlattenRoutes<C>] :
-  T extends RendererRoute<infer C> ? FlattenRoutes<C> :
+  T extends RenderRoute<infer C> ? FlattenRoutes<C> :
   never;
 
 // Then process the flattened structure
@@ -92,7 +92,7 @@ type RoutePatterns_<T extends AnyRoute, B extends string> =
   T extends Route<infer I> ? JoinPatterns<B, I> :
   T extends MiddlewareRoute<infer C> ? RoutePatterns<C, B> :
   T extends PrefixRoute<infer I, infer C> ? RoutePatterns<C, JoinPatterns<B, I>> :
-  T extends RendererRoute<infer C> ? RoutePatterns<C, B> :
+  T extends RenderRoute<infer C> ? RoutePatterns<C, B> :
   never;
 
 // prettier-ignore

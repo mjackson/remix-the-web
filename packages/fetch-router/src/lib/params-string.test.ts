@@ -1,7 +1,7 @@
-import { Assert, Equal } from './spec-helpers.ts';
+import { type Assert, type Equal } from '../../test/utils.ts';
 
 import { Params } from './params.ts';
-import { ParamsString, SearchParamsString } from './params-string.ts';
+import { type ParamsString, type SearchParamsString } from './params-string.ts';
 import { SearchParams } from './search-params.ts';
 
 type ParamsStringSpec = [

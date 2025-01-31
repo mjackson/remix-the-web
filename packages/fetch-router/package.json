@@ -24,13 +24,13 @@
     "ts-toolbelt": "^9.6.0"
   },
   "devDependencies": {
-    "@types/node": "^22.5.0"
+    "@types/node": "^22.5.0",
+    "tsup": "^8.3.5"
   },
   "scripts": {
-    "build": "tsc --outDir dist --project tsconfig.lib.json",
-    "test": "node --import @swc-node/register/esm-register --test ./src/**/*.spec.ts",
-    "prepare": "pnpm run build",
-    "release": "node --import @swc-node/register/esm-register ../../scripts/release.ts"
+    "build": "tsup",
+    "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test ./src/**/*.test.ts",
+    "prepare": "pnpm run build"
   },
   "keywords": [
     "fetch",

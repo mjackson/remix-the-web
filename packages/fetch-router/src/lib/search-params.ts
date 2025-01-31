@@ -1,4 +1,4 @@
-import { ParamsInit, Params } from './params.ts';
+import { type ParamsInit, Params } from './params.ts';
 
 export type SearchParamsInit<T extends string = string> = ParamsInit<T>;
 
@@ -24,7 +24,3 @@ export class SearchParams<T extends string = string> extends Params<T> {
     return str === '' ? '' : '?' + str;
   }
 }
-
-export type JoinSearchParams<A extends SearchParams, B extends SearchParams> = SearchParams<
-  (A extends SearchParams<infer T> ? T : never) | (B extends SearchParams<infer T> ? T : never)
-> & {};

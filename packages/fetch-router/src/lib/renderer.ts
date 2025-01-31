@@ -1,17 +1,9 @@
-export interface Renderer<T = unknown> {
-  render(value: T, init?: ResponseInit): Response | Promise<Response>;
+/**
+ * A function that generates a Response for a given value.
+ */
+export interface Renderer<T> {
+  (value: T, init?: ResponseInit): Response | Promise<Response>;
 }
 
-export function createRenderer<T>(render: Renderer<T>['render']): Renderer<T> {
-  return { render };
-}
-
-export function isRenderer<T>(value: any): value is Renderer<T> {
-  return typeof value?.render === 'function';
-}
-
-export const DefaultRenderer = createRenderer((value: BodyInit, init?: ResponseInit) => {
-  return new Response(value, init);
-});
-
-export type DefaultRendererValueType = typeof DefaultRenderer extends Renderer<infer T> ? T : never;
+export const DefaultRenderer: Renderer<BodyInit> = (value: BodyInit, init?: ResponseInit) =>
+  new Response(value, init);

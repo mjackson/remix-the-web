@@ -1,4 +1,4 @@
-import { String, Union } from 'ts-toolbelt';
+import { type String, type Union } from 'ts-toolbelt';
 
 import { Params } from './params.ts';
 import { SearchParams } from './search-params.ts';

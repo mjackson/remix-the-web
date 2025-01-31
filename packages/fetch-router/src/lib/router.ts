@@ -1,143 +1,173 @@
-import { Middleware } from './middleware.ts';
-import { Params } from './params.ts';
-import { Renderer, DefaultRenderer, createRenderer } from './renderer.ts';
-import { RouteHandler } from './route-handler.ts';
-import {
-  RoutePattern,
-  RoutePatternParamName,
-  RoutePatternSearchParamName,
-  joinPatterns,
-} from './route-pattern.ts';
-import { SearchParams } from './search-params.ts';
-
-type DefaultRendererValueType = typeof DefaultRenderer extends Renderer<infer T> ? T : never;
+import type { Middleware } from './middleware.ts';
+import type { Params } from './params.ts';
+import type { Renderer } from './renderer.ts';
+import type { RouteHandler } from './route-handler.ts';
+import type { RoutePatternParams, RoutePatternSearchParams } from './route-pattern-params.ts';
+import type { SearchParams } from './search-params.ts';
+import type { RoutePattern, RoutePatternJoin } from './route-pattern2.ts';
+import { parse } from './route-pattern2.ts';
 
 export type AnyRoute =
-  | Route<string>
-  | MiddlewareRoute<any>
-  | PrefixRoute<string, any>
-  | RendererRoute<any>;
+  | MiddlewareRoute<AnyRoute[]>
+  | PrefixRoute<AnyRoute[]>
+  | RenderRoute<AnyRoute[]>
+  | Route<any>;
+
+export interface MiddlewareRoute<T extends AnyRoute[]> {
+  middleware: Middleware[];
+  children: T;
+}
+
+export interface PrefixRoute<T extends AnyRoute[]> {
+  children: T;
+}
+
+export interface RenderRoute<T extends AnyRoute[]> {
+  renderer: Renderer;
+  children: T;
+}
 
 export interface Route<T extends string> {
-  input: T;
-  pattern: RoutePattern<string>;
-  handler: RouteHandler<Params, SearchParams, unknown>;
+  pattern: T;
+  handler: RouteHandler<RoutePatternParams<T>, RoutePatternSearchParams<T>, unknown>;
 }
 
-export interface MiddlewareRoute<C extends ReadonlyArray<AnyRoute>> {
-  middleware: Middleware[];
-  children: C;
+interface RouterCallback<R extends Router<any, any>, T extends AnyRoute[]> {
+  (router: R): T;
 }
 
-export interface PrefixRoute<T extends string, C extends ReadonlyArray<AnyRoute>> {
-  input: T;
-  children: C;
-}
-
-export interface RendererRoute<C extends ReadonlyArray<AnyRoute>> {
-  renderer: Renderer;
-  children: C;
-}
-
-type JoinParams<P extends Params, T extends string> = Params<
-  P extends Params<infer U> ? U | RoutePatternParamName<T> : never
+// prettier-ignore
+type JoinParams<A extends Params, B extends Params> = Params<
+  (A extends Params<infer T> ? T : never) | (B extends Params<infer T> ? T : never),
+  (A extends Params<infer _, infer T> ? T : never) | (B extends Params<infer _, infer T> ? T : never)
 > & {};
 
-type JoinSearchParams<S extends SearchParams, T extends string> = SearchParams<
-  S extends SearchParams<infer U> ? U | RoutePatternSearchParamName<T> : never
+type JoinSearchParams<A extends SearchParams, B extends SearchParams> = SearchParams<
+  (A extends SearchParams<infer T> ? T : never) | (B extends SearchParams<infer T> ? T : never)
 > & {};
 
-export interface RouterCallback<
-  R extends Router<Params, SearchParams, any>,
-  C extends ReadonlyArray<AnyRoute>,
-> {
-  (router: R): C;
-}
+export interface Router<T extends string = '/', R = BodyInit> {
+  mount<A extends string, const C extends AnyRoute[]>(
+    pattern: A,
+    callback: RouterCallback<Router<RoutePatternJoin<T, A>, R>, C>,
+  ): PrefixRoute<C>;
 
-export class Router<
-  P extends Params = Params<never>,
-  S extends SearchParams = SearchParams<never>,
-  R = DefaultRendererValueType,
-> {
-  protected paramsVarianceMarker!: P;
-  protected searchParamsVarianceMarker!: S;
+  render<U, const C extends AnyRoute[]>(
+    renderer: Renderer<U>,
+    callback: RouterCallback<Router<T, U>, C>,
+  ): RenderRoute<C>;
 
-  #pattern: string;
+  route<A extends string>(
+    pattern: A,
+    handler: RouteHandler<
+      JoinParams<RoutePatternParams<T>, RoutePatternParams<A>>,
+      JoinSearchParams<RoutePatternSearchParams<T>, RoutePatternSearchParams<A>>,
+      R
+    >,
+  ): Route<RoutePatternJoin<T, A>>;
 
-  constructor(pattern = '/') {
-    this.#pattern = pattern;
-    this.mount = this.mount.bind(this);
-    this.route = this.route.bind(this);
-    this.use = this.use.bind(this);
-  }
-
-  route<T extends string>(
-    pattern: T | RoutePattern<T>,
-    handler: RouteHandler<JoinParams<P, T>, JoinSearchParams<S, T>, R>,
-  ): Route<T> {
-    if (pattern instanceof RoutePattern) {
-      let input = pattern.source;
-      return {
-        input,
-        pattern: new RoutePattern(joinPatterns(this.#pattern, input), {
-          ignoreCase: pattern.ignoreCase,
-        }),
-        handler,
-      };
-    } else {
-      return {
-        input: pattern,
-        pattern: new RoutePattern(joinPatterns(this.#pattern, pattern)),
-        handler,
-      };
-    }
-  }
-
-  mount<T extends string, const C extends ReadonlyArray<AnyRoute>>(
-    pattern: T | RoutePattern<T>,
-    callback: RouterCallback<Router<JoinParams<P, T>, JoinSearchParams<S, T>, R>, C>,
-  ): PrefixRoute<T, C> {
-    if (pattern instanceof RoutePattern) {
-      return {
-        input: pattern.source,
-        children: callback(new Router(joinPatterns(this.#pattern, pattern.source))),
-      };
-    } else {
-      return {
-        input: pattern,
-        children: callback(new Router(joinPatterns(this.#pattern, pattern))),
-      };
-    }
-  }
-
-  use<M extends Middleware<P, S, R>, const C extends ReadonlyArray<AnyRoute>>(
-    middleware: M | M[],
-    callback?: RouterCallback<Router<P, S, R>, C>,
+  use<const C extends AnyRoute[]>(
+    middleware: Middleware | Middleware[],
+    callback?: RouterCallback<Router<T, R>, C>,
   ): MiddlewareRoute<C>;
-  use<T, const C extends ReadonlyArray<AnyRoute>>(
-    renderer: Renderer<T>,
-    callback: RouterCallback<Router<P, S, T>, C>,
-  ): RendererRoute<C>;
-  use<const C extends ReadonlyArray<AnyRoute>>(
-    arg: Middleware | Middleware[] | Renderer,
-    callback: RouterCallback<Router<P, S, any>, C>,
-  ): MiddlewareRoute<C> | RendererRoute<C> {
-    if (typeof arg === 'function' || Array.isArray(arg)) {
-      return {
-        middleware: Array.isArray(arg) ? arg : [arg],
-        children: callback?.(this) ?? ([] as unknown as C),
-      };
-    } else {
-      return {
-        renderer: arg,
-        children: callback(this as Router<P, S, any>),
-      };
-    }
-  }
 }
 
-export function createRoutes<const C extends ReadonlyArray<AnyRoute>>(
-  callback: RouterCallback<Router, C>,
-): C {
-  return callback(new Router());
+let patternStack: RoutePattern[] = [
+  {
+    protocol: '',
+    hostname: '',
+    pathname: '/',
+    search: '',
+  },
+];
+
+function pushPattern<T>(pattern: string, callback: () => T): T {
+  patternStack.push(parse(pattern));
+  let result = callback();
+  patternStack.pop();
+  return result;
 }
+
+function mount<const C extends AnyRoute[]>(
+  pattern: string,
+  callback: RouterCallback<Router, C>,
+): PrefixRoute<C> {
+  return { children: callback(new Router(pattern)) };
+}
+
+function route<T extends string>(pattern: T, handler: RouteHandler): Route<T> {
+  return { pattern, handler };
+}
+
+export function createRoutes<const C extends AnyRoute[]>(callback?: RouterCallback<Router, C>): C {
+  // return callback?.(new Router()) ?? ([] as any);
+  return [] as unknown as C;
+}
+
+// prettier-ignore
+type RoutePatterns<T extends AnyRoute[]> =
+  T extends [infer L extends AnyRoute, ...infer R extends AnyRoute[]] ?
+    RoutePatterns_<L> | RoutePatterns<R> :
+  never;
+
+// prettier-ignore
+type RoutePatterns_<T extends AnyRoute> =
+  T extends Route<infer P> ? P :
+  T extends ParentRoute<infer C> ? RoutePatterns<C> :
+  never;
+
+type ParentRoute<T extends AnyRoute[]> = MiddlewareRoute<T> | PrefixRoute<T> | RenderRoute<T>;
+
+export interface HrefBuilder<T extends string> {
+  (input: T, params?: Params, searchParams?: SearchParams): string;
+}
+
+export function createHrefBuilder<T extends AnyRoute[]>(): HrefBuilder<RoutePatterns<T>> {
+  return (input, params, searchParams) => input;
+}
+
+// app code
+
+import { createRenderer } from './renderer.ts';
+
+let NumberRenderer = createRenderer(
+  (value: number, init) =>
+    new Response(value.toString(), {
+      ...init,
+      headers: {
+        ...init?.headers,
+        'Content-Type': 'text/plain',
+      },
+    }),
+);
+
+let routes = createRoutes(({ mount, route }) => [
+  route('/', () => new Response('home')),
+  route(':id', ({ params }) => new Response(`post ${params.get('id')}`)),
+  mount('/site', ({ mount, render, route }) => [
+    route('about', () => new Response('about')),
+    mount('blog', ({ route }) => [
+      route('edit', () => new Response('edit')),
+      route(
+        ':id?q',
+        ({ params, searchParams }) =>
+          new Response(`post ${params.get('id')} + ${searchParams.get('q')}`),
+      ),
+    ]),
+    render(NumberRenderer, ({ route }) => [
+      route('404', ({ respond }) =>
+        respond(404, {
+          headers: { 'X-Test': 'true' },
+        }),
+      ),
+    ]),
+    route('blog', () => new Response('blog')),
+    route('contact', () => new Response('contact')),
+    mount('/', ({ route }) => [
+      route('home', () => new Response('home')),
+      route('search', () => new Response('search')),
+    ]),
+  ]),
+]);
+
+let href = createHrefBuilder<typeof routes>();

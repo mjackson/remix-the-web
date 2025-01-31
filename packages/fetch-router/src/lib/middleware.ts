@@ -1,6 +1,5 @@
+import { type Env } from './env.ts';
 import { Params } from './params.ts';
-import { DefaultRendererValueType } from './renderer.ts';
-import { RequestEnv } from './request-env.ts';
 import { SearchParams } from './search-params.ts';
 
 /**
@@ -10,9 +9,9 @@ import { SearchParams } from './search-params.ts';
 export interface Middleware<
   P extends Params = Params,
   S extends SearchParams = SearchParams,
-  R = DefaultRendererValueType,
+  R = BodyInit,
 > {
-  (env: RequestEnv<P, S, R>, next: NextFunction): void | Response | Promise<void | Response>;
+  (env: Env<P, S, R>, next: NextFunction): void | Response | Promise<void | Response>;
 }
 
 export interface NextFunction {

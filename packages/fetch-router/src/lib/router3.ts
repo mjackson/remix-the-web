@@ -184,7 +184,7 @@ export function createHrefBuilder<T extends AnyRoute[]>(): HrefBuilder<RoutePatt
 let href = createHrefBuilder<typeof routes>();
 
 import { InitialContext, ContextProvider } from './context.ts';
-import { RequestEnv } from './request-env.ts';
+import { Env } from './env.ts';
 
 export interface RequestHandlerOptions {
   initialContext?: InitialContext;
@@ -211,10 +211,10 @@ export function createRequestHandler(
 
     if (match) {
       let context = new ContextProvider(options?.initialContext);
-      let env: RequestEnv = {
+      let env: Env = {
         context,
         params: match.params,
-        render: match.renderer.render,
+        render: match.renderer.respond,
         request,
         searchParams: match.searchParams,
       };
@@ -235,7 +235,7 @@ export function createRequestHandler(
 
 async function runMiddleware(
   middleware: Middleware[],
-  env: RequestEnv,
+  env: Env,
   next: NextFunction,
   index = 0,
 ): Promise<Response> {

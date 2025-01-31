@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import * as assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { Assert, Equal } from '../../test/spec-helpers.ts';
+import type { Assert, Equal } from '../../test/utils.ts';
+
 import { Params } from './params.ts';
 
 type ParamsVarianceSpec = [

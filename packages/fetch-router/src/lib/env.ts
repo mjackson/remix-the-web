@@ -1,14 +1,12 @@
 import { ContextProvider } from './context.ts';
 import { Params } from './params.ts';
+import { type Renderer } from './renderer.ts';
 import { SearchParams } from './search-params.ts';
-import { Renderer, DefaultRendererValueType } from './renderer.ts';
 
-type RenderFunction<T> = Renderer<T>['render'];
-
-export interface RequestEnv<
+export interface Env<
   P extends Params = Params,
   S extends SearchParams = SearchParams,
-  R = DefaultRendererValueType,
+  R = BodyInit,
 > {
   /**
    * Context that is shared by all middleware and the route handler in the current
@@ -24,9 +22,9 @@ export interface RequestEnv<
    */
   searchParams: S;
   /**
-   * A custom render function that is used to render the response for the current route.
+   * A function that is used to generate the response for the current route.
    */
-  render: RenderFunction<R>;
+  respond: Renderer<R>;
   /**
    * The current request object.
    */
