@@ -1,3 +1,5 @@
+import type { IterateOptions } from "./file-iterator";
+
 /**
  * A key/value interface for storing `File` objects.
  */
@@ -101,6 +103,58 @@ export interface FileStorage {
    * @returns A promise that resolves when the file has been stored
    */
   set(key: string, file: File): void | Promise<void>;
+
+  /**
+   * Creates an async iterable that yields files, with built in prefetching of pages.
+   * 
+   * The iterable will automatically handle pagination and prefetch the next page while you process
+   * the current one, improving performance when carrying out asynchronous operations on the results.
+   * 
+   * @example
+   * ```ts
+   * // Iterate over all files with default settings
+   * for await (const file of storage.iterate()) {
+   *   console.log(file.key);
+   * }
+   * 
+   * // Customize the page size and include metadata
+   * for await (const file of storage.iterate({
+   *   pageSize: 500,
+   *   includeMetadata: true,
+   *   prefix: 'user123/'
+   * })) {
+   *   console.log(file.name, file.size);
+   * }
+   * 
+   * // Use AbortSignal to cancel iteration
+   * const controller = new AbortController();
+   * setTimeout(() => controller.abort(), 5000); // Abort after 5 seconds
+   * 
+   * try {
+   *   for await (const file of storage.iterate({ signal: controller.signal })) {
+   *     console.log(file.key);
+   *   }
+   * } catch (error) {
+   *   if (error instanceof FileStorageIterationError && controller.signal.aborted) {
+   *     console.log('Iteration was aborted');
+   *   } else {
+   *     throw error;
+   *   }
+   * }
+   * ```
+   * 
+   * @param options Options for iteration
+   * @param options.cursor A page cursor to start iteration from.
+   * @param options.pageSize The number of items to fetch per page (default: 32)
+   * @param options.includeMetadata If true, include file metadata in the results
+   * @param options.prefix Only return files with keys that start with this prefix
+   * @param options.signal An AbortSignal that can be used to cancel the iteration
+   * @returns An async iterable that yields arrays of files
+   * @throws {FileStorageIterationError} If an error occurs during iteration or if the iteration is aborted
+   */
+  iterate<T extends ListOptions>(
+    options?: IterateOptions<T>
+  ): AsyncIterable<(T extends { includeMetadata: true } ? FileMetadata : FileKey)>;
 }
 
 export interface FileKey {
@@ -161,4 +215,17 @@ export interface ListResult<T extends ListOptions> {
    * A list of the files in storage.
    */
   files: (T extends { includeMetadata: true } ? FileMetadata : FileKey)[];
+  /**
+   * Makes the list result asynchronously iterable over its files array.
+   * This allows you to use the result directly in a for await...of loop:
+   * 
+   * @example
+   * ```ts
+   * let result = await storage.list();
+   * for await (const file of result) {
+   *   console.log(file.key);
+   * }
+   * ```
+   */
+  [Symbol.asyncIterator](): AsyncIterator<T extends { includeMetadata: true } ? FileMetadata : FileKey>;
 }

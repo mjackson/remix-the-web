@@ -1,4 +1,13 @@
-import { type FileStorage, type ListOptions, type ListResult } from './file-storage.ts';
+import type { IterateOptions } from './file-iterator.ts';
+import type {
+  FileKey,
+  FileMetadata,
+  FileStorage,
+  ListOptions,
+  ListResult,
+} from './file-storage.ts';
+
+import { FileIterator } from './file-iterator.ts';
 
 /**
  * A simple, in-memory implementation of the `FileStorage` interface.
@@ -51,10 +60,20 @@ export class MemoryFileStorage implements FileStorage {
       }
     }
 
+    // Capture storage instance in closure
+    const storage = this;
+
     return {
       cursor: nextCursor,
       files,
-    };
+      [Symbol.asyncIterator]() {
+        return new FileIterator(storage, {
+          ...options,
+          cursor: nextCursor,
+          firstPage: files
+        })[Symbol.asyncIterator]();
+      }
+    } as ListResult<T>;
   }
 
   async put(key: string, file: File): Promise<File> {
@@ -74,5 +93,11 @@ export class MemoryFileStorage implements FileStorage {
     });
 
     this.#map.set(key, newFile);
+  }
+
+  iterate<T extends ListOptions>(
+    options?: IterateOptions<T>
+  ): AsyncIterable<(T extends { includeMetadata: true } ? FileMetadata : FileKey)> {
+    return new FileIterator(this, options);
   }
 }

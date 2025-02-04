@@ -2,6 +2,65 @@
 
 This is the changelog for [`file-storage`](https://github.com/mjackson/remix-the-web/tree/main/packages/file-storage). It follows [semantic versioning](https://semver.org/).
 
+## v0.6.1 (2025-02-05)
+
+- Enhanced `storage.list()` to support async iteration of files with background prefetching
+  ```ts
+  for await (const files of storage.list()) {
+    for (const file of files) {
+      console.log(file.key);
+    }
+  }
+
+  // With options
+  for await (const files of storage.list({
+    prefix: 'user-uploads/',
+    limit: 100,
+    includeMetadata: true
+  })) {
+    for (const file of files) {
+      console.log(file.key, file.name, file.size);
+    }
+  }
+  ```
+
+- Added `storage.iterate(options)` for advanced async iteration over individual files, iterate prefetches the next page of files while you process the current one and yields one file at a time instead of arrays. Supports all `storage.list()` options plus:
+  - `pageSize`: Adjust the number of files fetched per page (default: 32)
+  - `signal`: Use an `AbortSignal` to cancel the iteration
+  ```ts
+  // Basic iteration
+  for await (const file of storage.iterate()) {
+    console.log(file.key);
+  }
+
+  // With regular list options
+  for await (const file of storage.iterate({
+    includeMetadata: true,
+    prefix: 'user-uploads/'
+  })) {
+    console.log(file.key, file.name, file.size);
+  }
+
+  // With advanced iterate options
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), 3000);
+
+  try {
+    for await (const file of storage.iterate({
+      signal: controller.signal,
+      pageSize: 100,
+    })) {
+      console.log(file.key);
+    }
+  } catch (error) {
+    if (error instanceof FileStorageIterationError && controller.signal.aborted) {
+      console.log('Iteration aborted by signal');
+    } else {
+      throw error;
+    }
+  }
+  ```
+
 ## v0.6.0 (2025-02-04)
 
 - BREAKING CHANGE: `LocalFileStorage` now uses 2 characters for shard directory names instead of 8.
