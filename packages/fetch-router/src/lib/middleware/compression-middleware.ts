@@ -1,4 +1,4 @@
-import { Middleware } from '../middleware.ts';
+import type { Middleware } from '../middleware.ts';
 
 export interface CompressionMiddlewareOptions {
   /**

@@ -3,7 +3,7 @@ import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import { openFile } from '@mjackson/lazy-file/fs';
 
-import { Middleware } from '../middleware.ts';
+import type { Middleware } from '../middleware.ts';
 
 interface StaticMiddlewareOptions {
   /**
@@ -134,7 +134,7 @@ function sendFile(
     return new Response(null, { status: 412 });
   }
 
-  return new Response(file.stream(), { headers });
+  return new Response(file, { headers });
 }
 
 function redirectTo(url: URL, status = 302): Response {

@@ -32,20 +32,6 @@ export interface Route<T extends string> {
   handler: RouteHandler<RoutePatternParams<T>, RoutePatternSearchParams<T>, unknown>;
 }
 
-interface RouterCallback<R extends Router<any, any>, T extends AnyRoute[]> {
-  (router: R): T;
-}
-
-// prettier-ignore
-type JoinParams<A extends Params, B extends Params> = Params<
-  (A extends Params<infer T> ? T : never) | (B extends Params<infer T> ? T : never),
-  (A extends Params<infer _, infer T> ? T : never) | (B extends Params<infer _, infer T> ? T : never)
-> & {};
-
-type JoinSearchParams<A extends SearchParams, B extends SearchParams> = SearchParams<
-  (A extends SearchParams<infer T> ? T : never) | (B extends SearchParams<infer T> ? T : never)
-> & {};
-
 export interface Router<T extends string = '/', R = BodyInit> {
   mount<A extends string, const C extends AnyRoute[]>(
     pattern: A,
@@ -71,6 +57,18 @@ export interface Router<T extends string = '/', R = BodyInit> {
     callback?: RouterCallback<Router<T, R>, C>,
   ): MiddlewareRoute<C>;
 }
+
+interface RouterCallback<R extends Router<any, any>, T extends AnyRoute[]> {
+  (router: R): T;
+}
+
+type JoinParams<A extends Params, B extends Params> = Params<
+  (A extends Params<infer T> ? T : never) | (B extends Params<infer T> ? T : never)
+> & {};
+
+type JoinSearchParams<A extends SearchParams, B extends SearchParams> = SearchParams<
+  (A extends SearchParams<infer T> ? T : never) | (B extends SearchParams<infer T> ? T : never)
+> & {};
 
 let patternStack: RoutePattern[] = [
   {
@@ -99,7 +97,9 @@ function route<T extends string>(pattern: T, handler: RouteHandler): Route<T> {
   return { pattern, handler };
 }
 
-export function createRoutes<const C extends AnyRoute[]>(callback?: RouterCallback<Router, C>): C {
+export function createRoutes<const C extends AnyRoute[]>(
+  callback?: RouterCallback<Router<'/', BodyInit>, C>,
+): C {
   // return callback?.(new Router()) ?? ([] as any);
   return [] as unknown as C;
 }
@@ -128,18 +128,14 @@ export function createHrefBuilder<T extends AnyRoute[]>(): HrefBuilder<RoutePatt
 
 // app code
 
-import { createRenderer } from './renderer.ts';
-
-let NumberRenderer = createRenderer(
-  (value: number, init) =>
-    new Response(value.toString(), {
-      ...init,
-      headers: {
-        ...init?.headers,
-        'Content-Type': 'text/plain',
-      },
-    }),
-);
+const NumberRenderer: Renderer<number> = (value: number, init) =>
+  new Response(value.toString(), {
+    ...init,
+    headers: {
+      ...init?.headers,
+      'Content-Type': 'text/plain',
+    },
+  });
 
 let routes = createRoutes(({ mount, route }) => [
   route('/', () => new Response('home')),

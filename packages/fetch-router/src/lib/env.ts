@@ -1,12 +1,11 @@
 import { ContextProvider } from './context.ts';
 import { Params } from './params.ts';
-import { type Renderer } from './renderer.ts';
 import { SearchParams } from './search-params.ts';
 
 export interface Env<
   P extends Params = Params,
   S extends SearchParams = SearchParams,
-  R = BodyInit,
+  R = unknown,
 > {
   /**
    * Context that is shared by all middleware and the route handler in the current
@@ -24,7 +23,7 @@ export interface Env<
   /**
    * A function that is used to generate the response for the current route.
    */
-  respond: Renderer<R>;
+  respond: (value: R, init?: ResponseInit) => Response | Promise<Response>;
   /**
    * The current request object.
    */

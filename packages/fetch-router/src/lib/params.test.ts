@@ -1,21 +1,23 @@
 import * as assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import type { Assert, Equal } from '../../test/utils.ts';
+import type { Assert, Refute, Equal, Extends } from '../../test/utils.ts';
 
 import { Params } from './params.ts';
 
 type ParamsVarianceSpec = [
   // specific params are assignable to generic params
-  Assert<Equal<Params<'a'> extends Params ? true : false, true>>,
+  Assert<Extends<Params<'a'>, Params>>,
   // more specific params are assignable to less specific params
-  Assert<Equal<Params<'a' | 'b'> extends Params<'a'> ? true : false, true>>,
+  Assert<Extends<Params<'a' | 'b'>, Params<'a'>>>,
   // empty params are assignable to generic params
-  Assert<Equal<Params<never, never> extends Params ? true : false, true>>,
-  // params with different param names do not extend one another
-  Assert<Equal<Params<'b'> extends Params<'a'> ? true : false, false>>,
-  // empty params are not assignable to specific params
-  Assert<Equal<Params<never, never> extends Params<'a'> ? true : false, false>>,
+  Assert<Extends<Params<never>, Params>>,
+  // less specific params are NOT assignable to more specific params
+  Refute<Extends<Params<'a'>, Params<'a' | 'b'>>>,
+  // params with different param names do NOT extend one another
+  Refute<Extends<Params<'b'>, Params<'a'>>>,
+  // empty params are NOT assignable to specific params
+  Refute<Extends<Params<never>, Params<'a'>>>,
 ];
 
 describe('Params', () => {
@@ -83,9 +85,13 @@ describe('Params', () => {
   });
 
   it('has() returns a boolean for unknown params', () => {
-    let params = new Params({ id: 'remix' });
-    let test = params.has('name');
-    type T = Assert<Equal<typeof test, boolean>>;
+    let params1 = new Params();
+    let test1 = params1.has('unknown');
+    type T1 = Assert<Equal<typeof test1, boolean>>;
+
+    let params2 = new Params({ id: 'remix' });
+    let test2 = params2.has('unknown');
+    type T2 = Assert<Equal<typeof test2, boolean>>;
   });
 
   it('get() returns a string for known params', () => {
@@ -95,9 +101,13 @@ describe('Params', () => {
   });
 
   it('get() returns string | null for unknown params', () => {
-    let params = new Params({ id: 'remix' });
-    let test = params.get('name');
-    type T = Assert<Equal<typeof test, string | null>>;
+    let params1 = new Params();
+    let test1 = params1.get('unknown');
+    type T1 = Assert<Equal<typeof test1, string | null>>;
+
+    let params2 = new Params({ id: 'remix' });
+    let test2 = params2.get('unknown');
+    type T2 = Assert<Equal<typeof test2, string | null>>;
   });
 
   it('returns the value of a param', () => {

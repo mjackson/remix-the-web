@@ -1,7 +1,7 @@
 /**
  * A function that generates a Response for a given value.
  */
-export interface Renderer<T> {
+export interface Renderer<T = unknown> {
   (value: T, init?: ResponseInit): Response | Promise<Response>;
 }
 

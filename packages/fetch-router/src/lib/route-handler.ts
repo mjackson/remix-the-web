@@ -8,7 +8,7 @@ import { SearchParams } from './search-params.ts';
 export interface RouteHandler<
   P extends Params = Params,
   S extends SearchParams = SearchParams,
-  R = BodyInit,
+  R = unknown,
 > {
   (env: Env<P, S, R>): Response | Promise<Response>;
 }

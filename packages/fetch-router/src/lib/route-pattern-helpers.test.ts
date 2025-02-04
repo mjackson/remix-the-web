@@ -34,7 +34,7 @@ type ExtractProtocolSpec = [
 ];
 
 describe('extractProtocol', () => {
-  it('returns the protocol from a pattern', () => {
+  it('returns the protocol from a route pattern', () => {
     assert.equal(extractProtocol(''), '');
     assert.equal(extractProtocol('http://'), 'http:');
     assert.equal(extractProtocol('https://'), 'https:');
@@ -67,7 +67,7 @@ type ExtractHostnameSpec = [
 ];
 
 describe('extractHostname', () => {
-  it('returns the hostname from a pattern', () => {
+  it('returns the hostname from a route pattern', () => {
     assert.equal(extractHostname(''), '');
     assert.equal(extractHostname('http://'), '');
     assert.equal(extractHostname('://localhost'), 'localhost');
@@ -122,7 +122,7 @@ type ExtractPathnameSpec = [
 ];
 
 describe('extractPathname', () => {
-  it('returns the pathname from a combined pathname + search pattern', () => {
+  it('returns the pathname from a route pattern', () => {
     assert.equal(extractPathname(''), '/');
     assert.equal(extractPathname('/'), '/');
     assert.equal(extractPathname('/?'), '/');
@@ -183,7 +183,7 @@ type ExtractSearchSpec = [
 ];
 
 describe('extractSearch', () => {
-  it('returns the search from a combined pathname + search pattern', () => {
+  it('returns the search from a route pattern', () => {
     assert.equal(extractSearch(''), '');
     assert.equal(extractSearch('/'), '');
     assert.equal(extractSearch('/?'), '?');

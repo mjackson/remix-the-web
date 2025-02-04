@@ -1,4 +1,4 @@
-import { Middleware } from '../middleware.ts';
+import type { Middleware } from '../middleware.ts';
 
 export interface LoggerMiddlewareOptions {
   /**
@@ -40,16 +40,16 @@ export function loggerMiddleware(options?: LoggerMiddlewareOptions): Middleware 
   let log = options?.log ?? console.log;
 
   return async ({ request }, next) => {
-    let start = new Date();
+    let start = Date.now();
     let response = await next();
-    let end = new Date();
+    let end = Date.now();
 
     let url = new URL(request.url);
     let message = format.replace(/%(\w+)/g, (_, key) => {
       if (key === 'contentLength') return response.headers.get('Content-Length') ?? '-';
       if (key === 'contentType') return response.headers.get('Content-Type') ?? '-';
-      if (key === 'date') return start.toISOString();
-      if (key === 'duration') return String(end.getTime() - start.getTime());
+      if (key === 'date') return new Date(start).toISOString();
+      if (key === 'duration') return String(end - start);
       if (key === 'host') return url.host;
       if (key === 'hostname') return url.hostname;
       if (key === 'method') return request.method;

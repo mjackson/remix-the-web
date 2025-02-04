@@ -8,7 +8,7 @@ export type SearchParamsInit<T extends string = string> = ParamsInit<T>;
  * Note: This is a read-only subset of the web's native [`URLSearchParams`](https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams) interface.
  */
 export class SearchParams<T extends string = string> extends Params<T> {
-  override get(name: T): string;
+  override get<N extends string extends T ? never : T>(name: N): string;
   override get(name: string): string | null;
   override get(name: string): string | null {
     for (let [n, value] of this) {

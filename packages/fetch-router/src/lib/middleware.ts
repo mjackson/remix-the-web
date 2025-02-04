@@ -4,12 +4,12 @@ import { SearchParams } from './search-params.ts';
 
 /**
  * A function that handles a request and may either 1) return a response or 2) call the `next`
- * function to pass control to the next middleware or route handler in the chain.
+ * function to pass control to the next middleware or route handler in the stack.
  */
 export interface Middleware<
   P extends Params = Params,
   S extends SearchParams = SearchParams,
-  R = BodyInit,
+  R = unknown,
 > {
   (env: Env<P, S, R>, next: NextFunction): void | Response | Promise<void | Response>;
 }

@@ -7,31 +7,13 @@ import type { SearchParams } from './search-params.ts';
 /**
  * The `Params` in a route pattern.
  */
-export type RoutePatternParams<T extends string> = RoutePatternParams_<
-  ExtractHostname<T>,
-  ExtractPathname<T>
->;
-
-type RoutePatternParams_<H extends string, P extends string> = Params<
-  HostnameParamName<H> | PathnameParamName<P>,
-  OptionalHostnameParamName<H> | OptionalPathnameParamName<P>
+export type RoutePatternParams<T extends string> = Params<
+  HostnameParamName<ExtractHostname<T>> | PathnameParamName<ExtractPathname<T>>
 >;
 
 type HostnameParamName<T extends string> = ParamName<String.Split<T, '.'>[number]>;
 type PathnameParamName<T extends string> = ParamName<String.Split<T, '/'>[number]>;
-
 type ParamName<T> = T extends `:${infer R}` ? (R extends `${string}?` ? never : R) : never;
-
-type OptionalHostnameParamName<T extends string> = OptionalParamName<String.Split<T, '.'>[number]>;
-type OptionalPathnameParamName<T extends string> = OptionalParamName<String.Split<T, '/'>[number]>;
-
-// prettier-ignore
-type OptionalParamName<T> =
-  T extends '*' ? T :
-  T extends `:${infer R}` ?
-    R extends `${infer L}?` ? L :
-    never :
-  never
 
 /**
  * The `SearchParams` in a route pattern.

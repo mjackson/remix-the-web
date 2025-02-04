@@ -19,11 +19,11 @@ import {
   joinSearch,
 } from './route-pattern-helpers.ts';
 
-export interface RoutePattern {
-  protocol: string;
-  hostname: string;
-  pathname: string;
-  search: string;
+export interface RoutePattern<T extends string = string> {
+  protocol: string extends T ? string : ExtractProtocol<T>;
+  hostname: string extends T ? string : ExtractHostname<T>;
+  pathname: string extends T ? string : ExtractPathname<T>;
+  search: string extends T ? string : ExtractSearch<T>;
 }
 
 export function parse(pattern: string): RoutePattern {
@@ -35,42 +35,31 @@ export function parse(pattern: string): RoutePattern {
   };
 }
 
-// prettier-ignore
-export type RoutePatternString<
-  Protocol extends string,
-  Hostname extends string,
-  Pathname extends string,
-  Search extends string,
-> = Hostname extends '' ? `${Pathname}${Search}` :
-    Protocol extends '' ? `://${Hostname}${Pathname}${Search}` :
-    `${Protocol}//${Hostname}${Pathname}${Search}`
+export type RoutePatternJoin<A extends string, B extends string> = RoutePatternString<{
+  protocol: JoinProtocol<ExtractProtocol<A>, ExtractProtocol<B>>;
+  hostname: JoinHostname<ExtractHostname<A>, ExtractHostname<B>>;
+  pathname: JoinPathname<ExtractPathname<A>, ExtractPathname<B>>;
+  search: JoinSearch<ExtractSearch<A>, ExtractSearch<B>>;
+}>;
 
-export function routePatternString(
-  protocol: string,
-  hostname: string,
-  pathname: string,
-  search: string,
-): string {
-  // prettier-ignore
-  return (
-    hostname === '' ? `${pathname}${search}` :
-    protocol === '' ? `://${hostname}${pathname}${search}` :
-    `${protocol}//${hostname}${pathname}${search}`
-  );
+export function join(a: string, b: string): string {
+  return stringify({
+    protocol: joinProtocol(extractProtocol(a), extractProtocol(b)),
+    hostname: joinHostname(extractHostname(a), extractHostname(b)),
+    pathname: joinPathname(extractPathname(a), extractPathname(b)),
+    search: joinSearch(extractSearch(a), extractSearch(b)),
+  });
 }
 
-export type RoutePatternJoin<E extends string, A extends string> = RoutePatternString<
-  JoinProtocol<ExtractProtocol<E>, ExtractProtocol<A>>,
-  JoinHostname<ExtractHostname<E>, ExtractHostname<A>>,
-  JoinPathname<ExtractPathname<E>, ExtractPathname<A>>,
-  JoinSearch<ExtractSearch<E>, ExtractSearch<A>>
->;
+// prettier-ignore
+export type RoutePatternString<T extends RoutePattern> =
+  T['hostname'] extends '' ? `${T['pathname']}${T['search']}` :
+  T['protocol'] extends '' ? `://${T['hostname']}${T['pathname']}${T['search']}` :
+  `${T['protocol']}//${T['hostname']}${T['pathname']}${T['search']}`;
 
-export function join(existing: string, additional: string): string {
-  return routePatternString(
-    joinProtocol(extractProtocol(existing), extractProtocol(additional)),
-    joinHostname(extractHostname(existing), extractHostname(additional)),
-    joinPathname(extractPathname(existing), extractPathname(additional)),
-    joinSearch(extractSearch(existing), extractSearch(additional)),
-  );
+export function stringify(pattern: RoutePattern): string {
+  // prettier-ignore
+  return pattern.hostname === '' ? `${pattern.pathname}${pattern.search}` :
+    pattern.protocol === '' ? `://${pattern.hostname}${pattern.pathname}${pattern.search}` :
+    `${pattern.protocol}//${pattern.hostname}${pattern.pathname}${pattern.search}`;
 }

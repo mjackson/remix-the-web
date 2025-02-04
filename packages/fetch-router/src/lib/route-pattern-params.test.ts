@@ -6,21 +6,21 @@ import type { SearchParams } from './search-params.ts';
 
 // prettier-ignore
 type RoutePatternParamsSpec = [
-  Assert<Equal<RoutePatternParams<''>, Params<never, never>>>,
-  Assert<Equal<RoutePatternParams<'/'>, Params<never, never>>>,
-  Assert<Equal<RoutePatternParams<'/blog'>, Params<never, never>>>,
-  Assert<Equal<RoutePatternParams<'/blog/:slug'>, Params<'slug', never>>>,
-  Assert<Equal<RoutePatternParams<'/blog/:slug?'>, Params<never, 'slug'>>>,
-  Assert<Equal<RoutePatternParams<'/blog/:slug?q'>, Params<'slug', never>>>,
-  Assert<Equal<RoutePatternParams<'https://remix.run'>, Params<never, never>>>,
-  Assert<Equal<RoutePatternParams<'https://:sub.remix.run'>, Params<'sub', never>>>,
-  Assert<Equal<RoutePatternParams<'https://:sub?.remix.run'>, Params<never, 'sub'>>>,
-  Assert<Equal<RoutePatternParams<'https://:sub?.:id.remix.run'>, Params<'id', 'sub'>>>,
-  Assert<Equal<RoutePatternParams<'https://:sub?.:id?.remix.run'>, Params<never, 'sub' | 'id'>>>,
-  Assert<Equal<RoutePatternParams<'https://*.remix.run'>, Params<never, '*'>>>,
-  Assert<Equal<RoutePatternParams<'https://remix.run/blog/:slug'>, Params<'slug', never>>>,
-  Assert<Equal<RoutePatternParams<'https://:sub.remix.run/blog/:slug'>, Params<'sub' | 'slug', never>>>,
-  Assert<Equal<RoutePatternParams<'https://remix.run/blog/:slug?'>, Params<never, 'slug'>>>,
+  Assert<Equal<RoutePatternParams<''>, Params<never>>>,
+  Assert<Equal<RoutePatternParams<'/'>, Params<never>>>,
+  Assert<Equal<RoutePatternParams<'/blog'>, Params<never>>>,
+  Assert<Equal<RoutePatternParams<'/blog/:slug'>, Params<'slug'>>>,
+  Assert<Equal<RoutePatternParams<'/blog/:slug?'>, Params<never>>>,
+  Assert<Equal<RoutePatternParams<'/blog/:slug?q'>, Params<'slug'>>>,
+  Assert<Equal<RoutePatternParams<'https://remix.run'>, Params<never>>>,
+  Assert<Equal<RoutePatternParams<'https://:sub.remix.run'>, Params<'sub'>>>,
+  Assert<Equal<RoutePatternParams<'https://:sub?.remix.run'>, Params<never>>>,
+  Assert<Equal<RoutePatternParams<'https://:sub?.:id.remix.run'>, Params<'id'>>>,
+  Assert<Equal<RoutePatternParams<'https://:sub?.:id?.remix.run'>, Params<never>>>,
+  Assert<Equal<RoutePatternParams<'https://*.remix.run'>, Params<never>>>,
+  Assert<Equal<RoutePatternParams<'https://remix.run/blog/:slug'>, Params<'slug'>>>,
+  Assert<Equal<RoutePatternParams<'https://:sub.remix.run/blog/:slug'>, Params<'sub' | 'slug'>>>,
+  Assert<Equal<RoutePatternParams<'https://remix.run/blog/:slug?'>, Params<never>>>,
 ];
 
 // prettier-ignore

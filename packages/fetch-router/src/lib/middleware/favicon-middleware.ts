@@ -1,6 +1,6 @@
 import { openFile } from '@mjackson/lazy-file/fs';
 
-import { Middleware } from '../middleware.ts';
+import type { Middleware } from '../middleware.ts';
 
 export interface FaviconMiddlewareOptions {
   /**
@@ -16,7 +16,7 @@ export interface FaviconMiddlewareOptions {
  * @param options Options to configure the middleware.
  */
 export function faviconMiddleware(
-  file: File | string,
+  file: string | File,
   options?: FaviconMiddlewareOptions,
 ): Middleware {
   if (typeof file === 'string') {
@@ -43,6 +43,6 @@ export function faviconMiddleware(
       headers.set('Cache-Control', `public, max-age=${maxAge}`);
     }
 
-    return new Response(file.stream(), { headers });
+    return new Response(file, { headers });
   };
 }
