@@ -32,29 +32,88 @@ export interface Route<T extends string> {
   handler: RouteHandler<RoutePatternParams<T>, RoutePatternSearchParams<T>, unknown>;
 }
 
-export interface Router<T extends string = '/', R = BodyInit> {
+type RouterConstraint<P extends Params, S extends SearchParams, R> = {
+  params: P;
+  searchParams: S;
+  render: R;
+};
+
+// type Router<Path extends string, Constraints extends RouterConstraint<any, any, any>> = {
+
+// }
+
+// // more-routes.ts
+// function moreRoutes({ mount }: Router<string, { params: 'id', searchParams: 'q' }>) {
+//   mount('/blah', ({ route }: Router<string, { params: 'id', searchParams: 'q' }>) => [
+//     route(':id?q', ({ params, searchParams }) => new Response(`post ${params.get('id')} + ${searchParams.get('q')}`))
+//   ]);
+// }
+
+// export interface Router<T extends string = '/', R = BodyInit> {
+//   mount<A extends string, const C extends AnyRoute[]>(
+//     pattern: A,
+//     callback: RouterCallback<Router<RoutePatternJoin<T, A>, R>, C>,
+//   ): PrefixRoute<C>;
+
+//   render<U, const C extends AnyRoute[]>(
+//     renderer: Renderer<U>,
+//     callback: RouterCallback<Router<T, U>, C>,
+//   ): RenderRoute<C>;
+
+//   route<A extends string>(
+//     pattern: A,
+//     handler: RouteHandler<
+//       JoinParams<RoutePatternParams<T>, RoutePatternParams<A>>,
+//       JoinSearchParams<RoutePatternSearchParams<T>, RoutePatternSearchParams<A>>,
+//       R
+//     >,
+//   ): Route<RoutePatternJoin<T, A>>;
+
+//   use<const C extends AnyRoute[]>(
+//     middleware: Middleware | Middleware[],
+//     callback?: RouterCallback<Router<T, R>, C>,
+//   ): MiddlewareRoute<C>;
+// }
+
+export interface Router<
+  T extends RouterConstraint<Params, SearchParams, any>,
+  Pattern extends string,
+> {
   mount<A extends string, const C extends AnyRoute[]>(
     pattern: A,
-    callback: RouterCallback<Router<RoutePatternJoin<T, A>, R>, C>,
+    callback: RouterCallback<
+      Router<
+        {
+          params: JoinParams<T['params'], RoutePatternParams<A>>;
+          searchParams: JoinSearchParams<T['searchParams'], RoutePatternSearchParams<A>>;
+          render: T['render'];
+        },
+        RoutePatternJoin<Pattern, A>
+      >,
+      C
+    >,
   ): PrefixRoute<C>;
 
   render<U, const C extends AnyRoute[]>(
     renderer: Renderer<U>,
-    callback: RouterCallback<Router<T, U>, C>,
+    callback: RouterCallback<
+      Router<{ params: T['params']; searchParams: T['searchParams']; render: U }, Pattern>,
+      C
+    >,
   ): RenderRoute<C>;
 
   route<A extends string>(
     pattern: A,
     handler: RouteHandler<
-      JoinParams<RoutePatternParams<T>, RoutePatternParams<A>>,
-      JoinSearchParams<RoutePatternSearchParams<T>, RoutePatternSearchParams<A>>,
-      R
+      JoinParams<T['params'], RoutePatternParams<A>>,
+      JoinSearchParams<T['searchParams'], RoutePatternSearchParams<A>>,
+      T['render']
     >,
-  ): Route<RoutePatternJoin<T, A>>;
+  ): Route<RoutePatternJoin<Pattern, A>>;
 
   use<const C extends AnyRoute[]>(
     middleware: Middleware | Middleware[],
-    callback?: RouterCallback<Router<T, R>, C>,
+    callback?: RouterCallback<Router<T, Pattern>, C>,
   ): MiddlewareRoute<C>;
 }
 
@@ -70,35 +129,38 @@ type JoinSearchParams<A extends SearchParams, B extends SearchParams> = SearchPa
   (A extends SearchParams<infer T> ? T : never) | (B extends SearchParams<infer T> ? T : never)
 > & {};
 
-let patternStack: RoutePattern[] = [
-  {
-    protocol: '',
-    hostname: '',
-    pathname: '/',
-    search: '',
-  },
-];
+// let patternStack: RoutePattern[] = [
+//   {
+//     protocol: '',
+//     hostname: '',
+//     pathname: '/',
+//     search: '',
+//   },
+// ];
 
-function pushPattern<T>(pattern: string, callback: () => T): T {
-  patternStack.push(parse(pattern));
-  let result = callback();
-  patternStack.pop();
-  return result;
-}
+// function pushPattern<T>(pattern: string, callback: () => T): T {
+//   patternStack.push(parse(pattern));
+//   let result = callback();
+//   patternStack.pop();
+//   return result;
+// }
 
-function mount<const C extends AnyRoute[]>(
-  pattern: string,
-  callback: RouterCallback<Router, C>,
-): PrefixRoute<C> {
-  return { children: callback(new Router(pattern)) };
-}
+// function mount<const C extends AnyRoute[]>(
+//   pattern: string,
+//   callback: RouterCallback<Router, C>,
+// ): PrefixRoute<C> {
+//   return { children: callback(new Router(pattern)) };
+// }
 
-function route<T extends string>(pattern: T, handler: RouteHandler): Route<T> {
-  return { pattern, handler };
-}
+// function route<T extends string>(pattern: T, handler: RouteHandler): Route<T> {
+//   return { pattern, handler };
+// }
 
 export function createRoutes<const C extends AnyRoute[]>(
-  callback?: RouterCallback<Router<'/', BodyInit>, C>,
+  callback?: RouterCallback<
+    Router<{ params: Params<never>; searchParams: SearchParams<never>; render: BodyInit }, '/'>,
+    C
+  >,
 ): C {
   // return callback?.(new Router()) ?? ([] as any);
   return [] as unknown as C;
