@@ -3,12 +3,16 @@ import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import { openFile, writeFile } from '@mjackson/lazy-file/fs';
 
-import {
-  type FileStorage,
-  type FileMetadata,
-  type ListOptions,
-  type ListResult,
+import type { IterateOptions } from './file-iterator.ts';
+import type {
+  FileKey,
+  FileMetadata,
+  FileStorage,
+  ListOptions,
+  ListResult,
 } from './file-storage.ts';
+
+import { FileIterator } from './file-iterator.ts';
 
 /**
  * A `FileStorage` that is backed by a directory on the local filesystem.
@@ -117,9 +121,18 @@ export class LocalFileStorage implements FileStorage {
       }
     }
 
+    // Capture storage instance in closure
+    const storage = this;
     return {
       cursor: nextCursor,
       files,
+      [Symbol.asyncIterator]() {
+        return new FileIterator<T>(storage, {
+          ...options,
+          cursor: nextCursor,
+          firstPage: files
+        })[Symbol.asyncIterator]();
+      }
     };
   }
 
@@ -170,6 +183,12 @@ export class LocalFileStorage implements FileStorage {
       filePath: path.join(directory, `${hash}.dat`),
       metaPath: path.join(directory, `${hash}.meta.json`),
     };
+  }
+
+  iterate<T extends ListOptions>(
+    options?: IterateOptions<T>
+  ): AsyncIterable<(T extends { includeMetadata: true } ? FileMetadata : FileKey)> {
+    return new FileIterator(this, options);
   }
 }
 
