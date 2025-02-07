@@ -129,6 +129,26 @@ describe('createRequestListener', () => {
     });
   });
 
+  it('uses the `host` option function to override the `Host` header', async () => {
+    await new Promise<void>((resolve) => {
+      let handler: FetchHandler = async (request) => {
+        assert.equal(request.url, 'http://remix.run/');
+        return new Response('Hello, world!');
+      };
+
+      let listener = createRequestListener(handler, {
+        host: (headers) => headers.get('x-forwarded-host')!,
+      });
+      assert.ok(listener);
+
+      let req = createMockRequest({ headers: { 'x-forwarded-host': 'remix.run' } });
+      let res = createMockResponse({ req });
+
+      listener(req, res);
+      resolve();
+    });
+  });
+
   it('uses the `protocol` option to construct the URL', async () => {
     await new Promise<void>((resolve) => {
       let handler: FetchHandler = async (request) => {
@@ -140,6 +160,28 @@ describe('createRequestListener', () => {
       assert.ok(listener);
 
       let req = createMockRequest({ headers: { host: 'example.com' } });
+      let res = createMockResponse({ req });
+
+      listener(req, res);
+      resolve();
+    });
+  });
+
+  it('uses the `protocol` option function to construct the URL', async () => {
+    await new Promise<void>((resolve, reject) => {
+      let handler: FetchHandler = async (request) => {
+        assert.equal(request.url, 'https://example.com/');
+        return new Response('Hello, world!');
+      };
+
+      let listener = createRequestListener(handler, {
+        protocol: (headers) => headers.get('x-forwarded-proto')! + ':',
+      });
+      assert.ok(listener);
+
+      let req = createMockRequest({
+        headers: { host: 'example.com', 'x-forwarded-proto': 'https' },
+      });
       let res = createMockResponse({ req });
 
       listener(req, res);
