@@ -1,0 +1,59 @@
+{
+  "name": "@mjackson/route-pattern",
+  "version": "0.0.0",
+  "description": "URL route pattern matching",
+  "author": "Michael Jackson <mjijackson@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mjackson/remix-the-web.git",
+    "directory": "packages/route-pattern"
+  },
+  "homepage": "https://github.com/mjackson/remix-the-web/tree/main/packages/route-pattern#readme",
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "type": "module",
+  "types": "dist/route-pattern.d.ts",
+  "main": "dist/route-pattern.js",
+  "exports": {
+    ".": {
+      "module-sync": {
+        "types": "./dist/route-pattern.d.ts",
+        "default": "./dist/route-pattern.js"
+      },
+      "import": {
+        "types": "./dist/route-pattern.d.ts",
+        "default": "./dist/route-pattern.js"
+      },
+      "require": {
+        "types": "./dist/route-pattern.d.cts",
+        "default": "./dist/route-pattern.cjs"
+      },
+      "default": {
+        "types": "./dist/route-pattern.d.ts",
+        "default": "./dist/route-pattern.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.5",
+    "tsup": "^8.3.5"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test ./src/**/*.test.ts",
+    "prepare": "pnpm run build"
+  },
+  "keywords": [
+    "route",
+    "pattern",
+    "path-to-regexp",
+    "url",
+    "urlpattern",
+    "match"
+  ]
+}
