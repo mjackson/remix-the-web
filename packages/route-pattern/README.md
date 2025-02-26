@@ -4,7 +4,7 @@ A `RoutePattern` is a pattern that is used to match URLs. You can think about it
 
 ## Usage
 
-In the simplest case, a route pattern may match only a URL [pathname](https://developer.mozilla.org/en-US/docs/Web/API/URL/pathname). Variable portions of the URL can be matched with a `:id`-style identifier. Route patterns are able to match URLs, and also generate URLs that match that pattern.
+In the simplest case, a route pattern may match only a URL [pathname](https://developer.mozilla.org/en-US/docs/Web/API/URL/pathname). Variable portions of the URL can be matched with a `:id`-style identifier.
 
 ```ts
 import { RoutePattern } from '@mjackson/route-pattern';
@@ -12,11 +12,9 @@ import { RoutePattern } from '@mjackson/route-pattern';
 let pattern = new RoutePattern('/users/:id');
 let match = pattern.match('https://remix.run/users/123');
 match.params; // { id: '123' }
-
-let url = pattern.format({ id: '456' }); // 'https://remix.run/users/456'
 ```
 
-Param encoding and decoding is supported through the `ParamCodec` interface.
+All params are strings by default. Param encoding and decoding to/from custom types is supported through the `ParamCodec` interface.
 
 ```ts
 import { RoutePattern, type ParamCodec } from '@mjackson/route-pattern';
@@ -28,14 +26,12 @@ const NumberCodec: ParamCodec<number> = {
 
 let pattern = new RoutePattern('/users/:id', {
   params: {
-    // Always treat the `id` param as a number, both when matching and formatting URLs.
+    // Always treat the `id` param as a number, both when matching and generating URLs.
     id: NumberCodec,
   },
 });
 let match = pattern.match('https://remix.run/users/123');
 match.params; // { id: 123 }
-
-let url = pattern.format({ id: 456 }); // 'https://remix.run/users/456'
 ```
 
 You can also match the URL [hostname](https://developer.mozilla.org/en-US/docs/Web/API/URL/hostname) and (optionally) [protocol](https://developer.mozilla.org/en-US/docs/Web/API/URL/protocol):
@@ -105,9 +101,42 @@ let pattern = new RoutePattern('/blog?tags', {
 
 let match = pattern.match('https://remix.run/blog?tags=javascript,react');
 match.searchParams; // { tags: ['javascript', 'react'] }
+```
 
-pattern.format(
-  {}, // params
-  { tags: ['javascript', 'react'] }, // searchParams
-); // 'https://remix.run/blog?tags=javascript,react'
+## Generating URLs
+
+You can generate URLs from route patterns using an "href builder". An href builder is a function that generates URLs based on a route pattern, interpolating any params and/or search params you provide.
+
+A generic href builder can generate any URL, but the API also supports a generic type that is able to give you type safety and hints when generating URLs that match a specific pattern. Just provide the [`typeof`](https://www.typescriptlang.org/docs/handbook/2/typeof-types.html) the pattern you'd like to generate URLs for, and href builder will make sure all your URLs are typesafe.
+
+```ts
+import { createHrefBuilder } from '@mjackson/route-pattern';
+
+let pattern = new RoutePattern('/users(/:id)/edit', {
+  params: {
+    id: NumberCodec,
+  },
+});
+let href = createHrefBuilder<typeof pattern>();
+
+href('/users/:id', { id: 123 }); // '/users/123'
+href('/users/:id/edit', { id: 123 }); // '/users/123'
+```
+
+Patterns that include search params can also be generated. Search params are provided as the 3rd argument to disambiguate them from hostname/pathname params with the same name.
+
+```ts
+const SortOrderCodec: ParamCodec<'asc' | 'desc'> = {
+  parse: (value) => (value === 'desc' ? 'desc' : 'asc'),
+  stringify: (value) => value,
+};
+
+let pattern = new RoutePattern('/products/:id?sort', {
+  searchParams: {
+    sort: SortOrderCodec,
+  },
+});
+let href = createHrefBuilder<typeof pattern>();
+
+href('/products/:id?sort', { id: 'nike' }, { sort: 'asc' }); // '/products/nike?sort=asc'
 ```
