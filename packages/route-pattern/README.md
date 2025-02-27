@@ -107,8 +107,6 @@ match.searchParams; // { tags: ['javascript', 'react'] }
 
 You can generate URLs from route patterns using an "href builder". An href builder is a function that generates URLs based on a route pattern, interpolating any params and/or search params you provide.
 
-A generic href builder can generate any URL, but the API also supports a generic type that is able to give you type safety and hints when generating URLs that match a specific pattern. Just provide the [`typeof`](https://www.typescriptlang.org/docs/handbook/2/typeof-types.html) the pattern you'd like to generate URLs for, and href builder will make sure all your URLs are typesafe.
-
 ```ts
 import { createHrefBuilder } from '@mjackson/route-pattern';
 
@@ -117,7 +115,7 @@ let pattern = new RoutePattern('/users(/:id)/edit', {
     id: NumberCodec,
   },
 });
-let href = createHrefBuilder<typeof pattern>();
+let href = createHrefBuilder(pattern);
 
 href('/users/:id', { id: 123 }); // '/users/123'
 href('/users/:id/edit', { id: 123 }); // '/users/123'
@@ -136,7 +134,17 @@ let pattern = new RoutePattern('/products/:id?sort', {
     sort: SortOrderCodec,
   },
 });
-let href = createHrefBuilder<typeof pattern>();
+let href = createHrefBuilder(pattern);
 
 href('/products/:id?sort', { id: 'nike' }, { sort: 'asc' }); // '/products/nike?sort=asc'
+```
+
+You can generate URLs for many different patterns by passing an array of patterns to `createHrefBuilder`.
+
+```ts
+let patterns = [new RoutePattern('/users/:id'), new RoutePattern('/users/:id/edit')] as const;
+let href = createHrefBuilder(patterns);
+
+href('/users/:id', { id: '123' }); // '/users/123'
+href('/users/:id/edit', { id: '123' }); // '/users/123/edit'
 ```
