@@ -1,3 +1,13 @@
+// prettier-ignore
+export type ExpandOptionals<T extends string> =
+  T extends `${infer L}(${infer M})${infer R}` ?
+    L extends `${string})${string}` ? never :  // Unmatched close paren
+    M extends `${string}(${string}` ? never :  // Nested open paren
+    `${L}${ExpandOptionals<R>}` | `${L}${M}${ExpandOptionals<R>}` :
+  T extends `${string}(${string}` ? never :  // Unmatched open paren
+  T extends `${string})${string}` ? never :  // Unmatched close paren
+  T; // No parens
+
 /**
  * Expands an pattern with optionals into multiple patterns without optionals.
  * Does not support nested optionals.
