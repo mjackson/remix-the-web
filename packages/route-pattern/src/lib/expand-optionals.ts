@@ -16,51 +16,47 @@
  *
  * @throws {ParseError} when parentheses are nested or unmatched
  */
-export function expandOptionals(pattern: string): Set<string> {
-  const tokens = scan(pattern);
-  const graph = parse(tokens);
+export function* expandOptionals(rawPattern: string): Generator<string> {
+  const parens = matchParens(rawPattern);
 
-  const paths: Set<string> = new Set();
-  traverse(graph, (path) => {
-    paths.add(path.filter((x) => x !== '(' && x !== ')').join(''));
-  });
-  return paths;
-}
+  // Iterate through all possible combinations of optionals
+  // by treating a number (`state`) as a binary number mapping to
+  // true/false values
+  //
+  // For example, with 3 optionals you can use 3 bits to represent the 2^3 = possible 8 combinations:
+  //
+  // | number | binary | booleans |
+  // | ------ | ------ | -------- |
+  // | 0      |    000 |    f f f |
+  // | 1      |    001 |    f f t |
+  // | 2      |    010 |    f t f |
+  // | 3      |    011 |    f t t |
+  // | 4      |    100 |    t f f |
+  // | 5      |    101 |    t f t |
+  // | 6      |    110 |    t t f |
+  // | 7      |    111 |    t t t |
 
-/**
- * Tokenize the pattern into:
- * - open parenthesis `(`
- * - close parenthesis `)`
- * - sequence of non-parenthesis characters
- *
- * Similar to `pattern.split(/[()]/)`, but the individual parens characters are also part of the result.
- *
- * For example:
- * ```ts
- * scan("the (quick) brown fox (jumped)") // -> ["the ", "(", "quick", ")", " brown fox ", "(", "jumped", ")"]
- * ```
- */
-function scan(pattern: string): Array<string> {
-  const tokens = [];
+  const max = 2 ** parens.length - 1;
+  for (let state = 0; state <= max; state++) {
+    let pattern = '';
 
-  let current = '';
-  for (const char of pattern) {
-    if (char === '(' || char === ')') {
-      if (current !== '') {
-        tokens.push(current);
-        current = '';
+    let current = 0;
+    parens.forEach(([open, close], i) => {
+      pattern += rawPattern.slice(current, open);
+
+      // Extract i-th bit from `state`
+      const shouldUseOptional = (1 << i) & state;
+      if (shouldUseOptional) {
+        pattern += rawPattern.slice(open + 1, close);
       }
-      tokens.push(char);
-      continue;
-    }
-    current += char;
-  }
-  current && tokens.push(current);
-  return tokens;
-}
 
-type ID = number;
-type Graph = Map<ID, { token: string; children: Array<ID> }>;
+      current = close + 1;
+    });
+
+    pattern += rawPattern.slice(current);
+    yield pattern;
+  }
+}
 
 type ParseErrorType = 'unmatched-parenthesis' | 'nested-parenthesis';
 export class ParseError extends Error {
@@ -77,77 +73,42 @@ export class ParseError extends Error {
 }
 
 /**
- * Create a graph representing possible ways to interpret the optionals for a given pattern.
- * For example, `the (quick) brown fox (jumped)` gets represented as:
+ * Identifies the indices for pairs of matching parentheses.
+ * Intentionally does not support nested parentheses.
  *
- * "the " ─ "(" ┬─────────┬ ")" ─ "brown fox" ─ "(" ┬──────────┬ ")"
- *              └ "quick" ┘                         └ "jumped" ┘
- *
- * where each open paren `(` lets you choose if you want to skip straight to its matching close paren `)`,
- * or if you want to include the parenthesized token.
- *
- * The graph has nodes for each token, using the token index as the node ID for representing edges between nodes:
+ * For example:
  *
  * ```ts
- * new Map([
- *   [0, { token: "the ", children: [1] }],
- *   [1, { token: "(", children: [2,3] }],
- *   [2, { token: "quick", children: [3] }],
- *   [3, { token: ")", children: [4] }],
- *   [4, { token: " brown fox ", children: [5] }],
- *   [5, { token: "(", children: [6,7] }],
- *   [6, { token: "jumped", children: [7] }],
- *   [7, { token: ")", children: [] }],
- * ])
+ * matchParens("a(b)c(d)e")
+ * //            ^ ^ ^ ^
+ * //           0123456789
+ * // -> [[1,3], [5,7]]
  * ```
  *
  * @throws {ParseError} when parentheses are nested or unmatched
  */
-function parse(tokens: Array<string>): Graph {
-  const graph: Graph = new Map();
+function matchParens(rawPattern: string): Array<[number, number]> {
+  const parens: Array<[number, number]> = [];
 
   const stack: Array<number> = [];
-  let prev: number | undefined = undefined;
+  for (let i = 0; i < rawPattern.length; i++) {
+    const char = rawPattern[i];
 
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i];
-    if (token === '(') {
-      if (stack.length > 0) {
-        throw new ParseError('nested-parenthesis', i);
-      }
+    if (char === '(') {
+      if (stack.length > 0) throw new ParseError('nested-parenthesis', i);
       stack.push(i);
-    } else if (token === ')') {
-      const match = stack.pop();
-      if (match === undefined) {
-        throw new ParseError('unmatched-parenthesis', i);
-      }
-      graph.get(match)!.children.push(i);
+      continue;
     }
 
-    graph.set(i, { token, children: [] });
-    prev !== undefined && graph.get(prev)?.children.push(i);
-    prev = i;
-  }
-  if (stack.length !== 0) {
-    throw new ParseError('unmatched-parenthesis', stack.pop()!);
-  }
-  return graph;
-}
-
-/**
- * Walks through the token graph produced by {@link parse} and calls the callback for each complete path through the graph.
- */
-function traverse(graph: Graph, callback: (path: Array<string>) => void) {
-  function recurse(id: ID, path: Array<string>) {
-    const node = graph.get(id)!;
-    path = [...path, node.token];
-    if (node.children.length === 0) {
-      callback(path);
-      return;
-    }
-    for (const child of node.children) {
-      recurse(child, path);
+    if (char === ')') {
+      const open = stack.pop();
+      if (open === undefined) throw new ParseError('unmatched-parenthesis', i);
+      parens.push([open, i]);
+      continue;
     }
   }
-  recurse(0, []);
+  if (stack.length > 0) {
+    throw new ParseError('unmatched-parenthesis', stack.at(-1)!);
+  }
+  return parens;
 }
