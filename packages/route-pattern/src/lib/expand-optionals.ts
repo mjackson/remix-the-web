@@ -1,12 +1,14 @@
 // prettier-ignore
-export type ExpandOptionals<T extends string> =
-  T extends `${infer L}(${infer M})${infer R}` ?
+export type ExpandOptionals<Pattern extends string> =
+  Pattern extends `${infer L}(${infer M})${infer R}` ?
     L extends `${string})${string}` ? never :  // Unmatched close paren
     M extends `${string}(${string}` ? never :  // Nested open paren
     `${L}${ExpandOptionals<R>}` | `${L}${M}${ExpandOptionals<R>}` :
-  T extends `${string}(${string}` ? never :  // Unmatched open paren
-  T extends `${string})${string}` ? never :  // Unmatched close paren
-  T; // No parens
+
+  Pattern extends `${string}(${string}` ? never :  // Unmatched open paren
+  Pattern extends `${string})${string}` ? never :  // Unmatched close paren
+
+  Pattern; // No parens
 
 /**
  * Expands an pattern with optionals into multiple patterns without optionals.
@@ -26,14 +28,14 @@ export type ExpandOptionals<T extends string> =
  *
  * @throws {ParseError} when parentheses are nested or unmatched
  */
-export function* expandOptionals(rawPattern: string): Generator<string> {
-  const parens = matchParens(rawPattern);
+export function* expandOptionals(pattern: string): Generator<string> {
+  const parens = matchParens(pattern);
 
-  // Iterate through all possible combinations of optionals
+  // Iterate through all possible variants of optionals
   // by treating a number (`state`) as a binary number mapping to
   // true/false values
   //
-  // For example, with 3 optionals you can use 3 bits to represent the 2^3 = possible 8 combinations:
+  // For example, with 3 optionals you can use 3 bits to represent the 2^3 = possible 8 variants:
   //
   // | number | binary | booleans |
   // | ------ | ------ | -------- |
@@ -48,23 +50,23 @@ export function* expandOptionals(rawPattern: string): Generator<string> {
 
   const max = 2 ** parens.length - 1;
   for (let state = 0; state <= max; state++) {
-    let pattern = '';
+    let variant = '';
 
     let current = 0;
     parens.forEach(([open, close], i) => {
-      pattern += rawPattern.slice(current, open);
+      variant += pattern.slice(current, open);
 
       // Extract i-th bit from `state`
       const shouldUseOptional = (1 << i) & state;
       if (shouldUseOptional) {
-        pattern += rawPattern.slice(open + 1, close);
+        variant += pattern.slice(open + 1, close);
       }
 
       current = close + 1;
     });
 
-    pattern += rawPattern.slice(current);
-    yield pattern;
+    variant += pattern.slice(current);
+    yield variant;
   }
 }
 
@@ -90,19 +92,19 @@ export class ParseError extends Error {
  *
  * ```ts
  * matchParens("a(b)c(d)e")
- * //            ^ ^ ^ ^
+ * //            └─┘ └─┘
  * //           0123456789
  * // -> [[1,3], [5,7]]
  * ```
  *
  * @throws {ParseError} when parentheses are nested or unmatched
  */
-function matchParens(rawPattern: string): Array<[number, number]> {
+function matchParens(pattern: string): Array<[number, number]> {
   const parens: Array<[number, number]> = [];
 
   const stack: Array<number> = [];
-  for (let i = 0; i < rawPattern.length; i++) {
-    const char = rawPattern[i];
+  for (let i = 0; i < pattern.length; i++) {
+    const char = pattern[i];
 
     if (char === '(') {
       if (stack.length > 0) throw new ParseError('nested-parenthesis', i);

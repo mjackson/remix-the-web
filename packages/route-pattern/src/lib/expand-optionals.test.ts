@@ -6,28 +6,61 @@ import type { Assert, Equal } from '../../test/utils.ts';
 
 describe('expandOptionals', () => {
   it('throws on nested open parens', () => {
-    assert.throws(() => expandOptionals('(('), new ParseError('nested-parenthesis', 1));
-    type T = Assert<Equal<ExpandOptionals<'(('>, never>>;
+    const pattern = '((';
+    type T = Assert<Equal<ExpandOptionals<typeof pattern>, never>>;
+    assert.throws(
+      () => Array.from(expandOptionals(pattern)),
+      new ParseError('nested-parenthesis', 1),
+    );
   });
 
   it('throws on unmatched open parens', () => {
-    assert.throws(() => expandOptionals('('), new ParseError('unmatched-parenthesis', 0));
-    type T1 = Assert<Equal<ExpandOptionals<'('>, never>>;
-    assert.throws(() => expandOptionals('()('), new ParseError('unmatched-parenthesis', 2));
-    type T2 = Assert<Equal<ExpandOptionals<'()('>, never>>;
+    const pattern = '(';
+    type T = Assert<Equal<ExpandOptionals<typeof pattern>, never>>;
+    assert.throws(
+      () => Array.from(expandOptionals(pattern)),
+      new ParseError('unmatched-parenthesis', 0),
+    );
+  });
+
+  it('throws on unmatched open parens after matched parens', () => {
+    const pattern = '()(';
+    type T = Assert<Equal<ExpandOptionals<typeof pattern>, never>>;
+    assert.throws(
+      () => Array.from(expandOptionals(pattern)),
+      new ParseError('unmatched-parenthesis', 2),
+    );
   });
 
   it('throws on unmatched close parens', () => {
-    assert.throws(() => expandOptionals(')'), new ParseError('unmatched-parenthesis', 0));
-    type T1 = Assert<Equal<ExpandOptionals<')'>, never>>;
-    assert.throws(() => expandOptionals('())'), new ParseError('unmatched-parenthesis', 2));
-    type T2 = Assert<Equal<ExpandOptionals<'())'>, never>>;
+    const pattern = ')';
+    type T = Assert<Equal<ExpandOptionals<typeof pattern>, never>>;
+    assert.throws(
+      () => Array.from(expandOptionals(pattern)),
+      new ParseError('unmatched-parenthesis', 0),
+    );
   });
 
-  it('expands optionals into multiple patterns', () => {
-    assert.deepStrictEqual(expandOptionals('/foo(/bar/:baz)'), new Set(['/foo', '/foo/bar/:baz']));
-    type T1 = Assert<Equal<ExpandOptionals<'/foo(/bar/:baz)'>, '/foo' | '/foo/bar/:baz'>>;
-    assert.deepStrictEqual(expandOptionals('a(b)c(d)e'), new Set(['ace', 'acde', 'abce', 'abcde']));
-    type T2 = Assert<Equal<ExpandOptionals<'a(b)c(d)e'>, 'ace' | 'acde' | 'abce' | 'abcde'>>;
+  it('throws on unmatched close parens after matched parens', () => {
+    const pattern = '())';
+    type T = Assert<Equal<ExpandOptionals<typeof pattern>, never>>;
+    assert.throws(
+      () => Array.from(expandOptionals(pattern)),
+      new ParseError('unmatched-parenthesis', 2),
+    );
+  });
+
+  it('expands one optional into two variants', () => {
+    const pattern = '/foo(/bar/:baz)';
+    const expected = ['/foo', '/foo/bar/:baz'] as const;
+    type T = Assert<Equal<ExpandOptionals<typeof pattern>, (typeof expected)[number]>>;
+    assert.deepStrictEqual(Array.from(expandOptionals(pattern)), expected);
+  });
+
+  it('expands two optionals into four variants', () => {
+    const pattern = 'a(b)c(d)e';
+    const expected = ['ace', 'abce', 'acde', 'abcde'] as const;
+    type T = Assert<Equal<ExpandOptionals<typeof pattern>, (typeof expected)[number]>>;
+    assert.deepStrictEqual(Array.from(expandOptionals(pattern)), expected);
   });
 });
