@@ -103,6 +103,22 @@ let match = pattern.match('https://remix.run/blog?tags=javascript,react');
 match.searchParams; // { tags: ['javascript', 'react'] }
 ```
 
+## Matching Many Route Patterns
+
+```ts
+import { createTrieMatcher } from '@mjackson/route-pattern';
+
+let matcher = createTrieMatcher([
+  new RoutePattern('/users/:id'),
+  new RoutePattern('/users/:id/edit'),
+]);
+
+let match = matcher('https://remix.run/users/123');
+match.pattern; // RoutePattern<'/users/:id'>
+match.params;
+match.searchParams;
+```
+
 ## Generating URLs
 
 You can generate URLs from route patterns using an "href builder". An href builder is a function that generates URLs based on a route pattern, interpolating any params and/or search params you provide.
