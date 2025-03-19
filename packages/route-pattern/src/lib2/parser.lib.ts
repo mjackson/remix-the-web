@@ -29,16 +29,13 @@ export class Parser<Data = unknown> {
     });
   }
 
-  end(): Parser<Data> {
-    return new Parser((state) => {
-      const result = this.parse(state);
+  done(): (source: string) => Result<Data> {
+    const parser = end(this);
+    return (source: string) => {
+      const result = parser.parse({ source, index: 0 });
       if (!result.ok) return result;
-      state = result.value;
-      if (state.index !== state.source.length) {
-        return err('TODO: expected end');
-      }
-      return result;
-    });
+      return ok(result.value.data);
+    };
   }
 }
 
@@ -109,10 +106,11 @@ export const many0 = <Data>(parser: Parser<Data>): Parser<Array<Data>> => {
 export const many1 = <Data>(parser: Parser<Data>): Parser<Array<Data>> =>
   seq([parser, many0(parser)]).map((data) => [data[0], ...data[1]]);
 
-export const opt = <Data>(parser: Parser<Data>): Parser<Data | null> => {
+export const end = <Data>(parser: Parser<Data>): Parser<Data> => {
   return new Parser((state) => {
     const result = parser.parse(state);
-    if (!result.ok) return ok({ ...state, data: null } as any);
+    if (!result.ok) return result;
+    if (result.value.index !== result.value.source.length) return err('TODO');
     return result;
   });
 };
