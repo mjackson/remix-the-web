@@ -45,6 +45,9 @@ const protocolHostname = seq([opt(protocol), lit('://'), hostname]).map((data) =
   protocol: data[0],
   hostname: data[2],
 }));
+
+// choice([].map(end))
+
 export const pattern = choice([
   protocolHostname.end(),
   seq([
