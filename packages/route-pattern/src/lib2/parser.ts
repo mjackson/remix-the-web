@@ -1,4 +1,4 @@
-import { choice, lit, many0, opt, regex, seq, type Parser } from './parser.lib.ts';
+import { choice, lit, many0, many1, opt, regex, seq, type Parser } from './parser.lib.ts';
 
 type Text = { type: 'text'; value: string };
 
@@ -31,9 +31,9 @@ const optional = <Data>(parser: Parser<Data>): Parser<Optional<Data>> =>
     value: data[1],
   }));
 
-const protocol = many0(choice([optional(protocolText), protocolText]));
-const hostname = many0(choice([optional(choice([param, hostnameText])), param, hostnameText]));
-const pathname = many0(choice([optional(choice([param, hostnameText])), param, pathnameText]));
+const protocol = many1(choice([optional(protocolText), protocolText]));
+const hostname = many1(choice([optional(choice([param, hostnameText])), param, hostnameText]));
+const pathname = many1(choice([optional(choice([param, hostnameText])), param, pathnameText]));
 const search: Parser<Text> = regex(/.*/).map((data) => ({ type: 'text' as const, value: data }));
 
 // ProtocolHostname <- (Protocol) '://' Hostname
@@ -46,15 +46,16 @@ const protocolHostname = seq([opt(protocol), lit('://'), hostname]).map((data) =
   hostname: data[2],
 }));
 export const pattern = choice([
+  protocolHostname.end(),
   seq([
     opt(seq([protocolHostname, lit('/')]).map((data) => data[0])),
     pathname,
     opt(seq([lit('?'), search]).map((data) => data[1])),
-  ]).map((data) => ({
-    ...data[0],
-    pathname: data[1],
-    search: data[2],
-  })),
-  protocolHostname,
-  // TODO: switch order after adding END
+  ])
+    .map((data) => ({
+      ...data[0],
+      pathname: data[1],
+      search: data[2],
+    }))
+    .end(),
 ]);

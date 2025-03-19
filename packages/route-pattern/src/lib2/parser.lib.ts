@@ -32,7 +32,8 @@ export class Parser<Data = unknown> {
   end(): Parser<Data> {
     return new Parser((state) => {
       const result = this.parse(state);
-      if (!result.ok) result;
+      if (!result.ok) return result;
+      state = result.value;
       if (state.index !== state.source.length) {
         return err('TODO: expected end');
       }
@@ -47,7 +48,7 @@ export const choice = <T extends Parser>(parsers: Array<T>): Parser<GetData<T>> 
       const result = parser.parse(state) as ParseResult<GetData<T>>;
       if (result.ok) return result;
     }
-    return err('TODO');
+    return err('TODO: choice');
   });
 };
 
@@ -104,6 +105,9 @@ export const many0 = <Data>(parser: Parser<Data>): Parser<Array<Data>> => {
     return ok({ ...state, data });
   });
 };
+
+export const many1 = <Data>(parser: Parser<Data>): Parser<Array<Data>> =>
+  seq([parser, many0(parser)]).map((data) => [data[0], ...data[1]]);
 
 export const opt = <Data>(parser: Parser<Data>): Parser<Data | null> => {
   return new Parser((state) => {

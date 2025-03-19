@@ -9,18 +9,18 @@ import { pattern } from './parser.ts';
 //
 
 describe('parse', () => {
-  // it('protocol + hostname', () => {
-  //   const result = pattern.parse({ source: 'https://remix.run', index: 0 });
-  //   if (!result.ok) assert.fail();
-  //   assert.deepEqual(result.value.data, {
-  //     protocol: [{ type: 'text', value: 'https' }],
-  //     hostname: [{ type: 'text', value: 'remix.run' }],
-  //   });
-  // });
+  it('protocol + hostname', () => {
+    const result = pattern.parse({ source: 'https://remix.run', index: 0 });
+    if (!result.ok) assert.fail(result.message);
+    assert.deepEqual(result.value.data, {
+      protocol: [{ type: 'text', value: 'https' }],
+      hostname: [{ type: 'text', value: 'remix.run' }],
+    });
+  });
 
   it('pathname + search', () => {
     const result = pattern.parse({ source: 'products/1?color=block', index: 0 });
-    if (!result.ok) assert.fail();
+    if (!result.ok) assert.fail(result.message);
     assert.deepEqual(result.value.data, {
       pathname: [{ type: 'text', value: 'products/1' }],
       search: { type: 'text', value: 'color=block' },
@@ -29,7 +29,7 @@ describe('parse', () => {
 
   it('protocol + hostname + pathname + search', () => {
     const result = pattern.parse({ source: 'https://remix.run/products/1?color=black', index: 0 });
-    if (!result.ok) assert.fail();
+    if (!result.ok) assert.fail(result.message);
     assert.deepEqual(result.value.data, {
       protocol: [{ type: 'text', value: 'https' }],
       hostname: [{ type: 'text', value: 'remix.run' }],
@@ -43,7 +43,7 @@ describe('parse', () => {
       source: 'http(s)://remix.run/products/:id?color=black',
       index: 0,
     });
-    if (!result.ok) assert.fail();
+    if (!result.ok) assert.fail(result.message);
     assert.deepEqual(result.value.data, {
       protocol: [
         { type: 'text', value: 'http' },
