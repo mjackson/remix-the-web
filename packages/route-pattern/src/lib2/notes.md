@@ -1,37 +1,24 @@
-## Parsing / validation
+##
+
+## thoughts...
+
+tokenize _before_ combine?
+
+## TODO
+
+### parsing
 
 - [x] split parts by first `://` -> first `/` -> first `?`
 
-- [ ] no `:` without param (lex?)
-- [ ] balanced parens in protocol, hostname, pathname
-- [ ] protocol: no `?`, `/`, `:`
+- [ ] error tests
+  - [ ] unbalanced params in each part
+  - [ ] unbalanced within parts even when balanced as a whole
+  - [ ] protocol: no `?`, `/`, `:` chars allowed
+  - [ ] hostname + pathname: no `:` without param
+- [ ] rename `done`
 
 - [] later: escape? `\\:`, `\\(`, `\\)`
 
-## lex:protocol
+### match
 
-`[a-zA-Z-.+]*` -> text
-`(` -> optional:open
-`)` -> optional:close
--> ERROR
-
-## lex:hostname
-
-`(` -> optional:open
-`)` -> optional:close
-`:<identifier>` -> param
-`:` -> ERROR
-`[^():]` -> text
-
-## lex:pathname
-
-`(` -> optional:open
-`)` -> optional:close
-`:<identifier>` -> param
-`:` -> ERROR
-`/` -> ERROR
-`[^():]` -> text
-
-## lex:search
-
-// TODO
+to regex + paramNames

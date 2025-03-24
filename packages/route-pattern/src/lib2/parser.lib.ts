@@ -4,9 +4,7 @@ type State = {
   source: string;
   index: number;
 };
-type Parsed<Data> = State & { data: Data };
-type ParseResult<Data> = Result<Parsed<Data>>;
-type Parse<Data> = (state: State) => ParseResult<Data>;
+type Parse<Data> = (state: State) => Result<State & { data: Data }>;
 
 type GetData<T extends Parser> = T extends Parser<infer Data> ? Data : never;
 
@@ -17,15 +15,15 @@ export class Parser<Data = unknown> {
     this.#parse = parse;
   }
 
-  parse(state: State): ParseResult<Data> {
+  parse(state: State) {
     return this.#parse(state);
   }
 
-  map<TransformedData>(fn: (data: Data) => TransformedData) {
+  map<TransformedData>(fn: (data: Data, state: State) => TransformedData) {
     return new Parser((state) => {
       const result = this.#parse(state);
       if (!result.ok) return result;
-      return ok({ ...result.value, data: fn(result.value.data) });
+      return ok({ ...result.value, data: fn(result.value.data, result.value) });
     });
   }
 
@@ -41,8 +39,9 @@ export class Parser<Data = unknown> {
 
 export const choice = <T extends Parser>(parsers: Array<T>): Parser<GetData<T>> => {
   return new Parser((state) => {
-    for (const parser of parsers) {
-      const result = parser.parse(state) as ParseResult<GetData<T>>;
+    for (const p of parsers) {
+      const parser = p as Parser<GetData<T>>;
+      const result = parser.parse(state);
       if (result.ok) return result;
     }
     return err('TODO: choice');
