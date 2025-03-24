@@ -1,5 +1,6 @@
-type PartName = 'protocol' | 'hostname' | 'pathname' | 'search';
-type Split = Partial<Record<PartName, string>>;
+import * as AST from './ast.ts';
+
+export type Split = Partial<Record<AST.PartName, string>>;
 
 export const split = (pattern: string): Split => {
   let index = 0;

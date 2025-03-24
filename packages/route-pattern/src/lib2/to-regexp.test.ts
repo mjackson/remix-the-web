@@ -1,6 +1,7 @@
 import * as assert from 'node:assert';
 import { describe, it } from 'node:test';
 
+import { parse } from './parse.ts';
 import { toRegExp } from './to-regexp.ts';
 
 // TODO:
@@ -11,7 +12,9 @@ import { toRegExp } from './to-regexp.ts';
 
 describe('toRegExp', () => {
   it('works', () => {
-    const { regexp, paramNames } = toRegExp('http(s)://(www.)remix.run/foo(/:bar/baz)');
+    const ast = parse('http(s)://(www.)remix.run/foo(/:bar/baz)');
+    if (!ast.ok) assert.fail(ast.error.type);
+    const { regexp, paramNames } = toRegExp(ast.value);
     assert.deepEqual(paramNames, ['bar']);
 
     const cases = {
@@ -29,9 +32,5 @@ describe('toRegExp', () => {
       const match = regexp.exec(url);
       assert.deepEqual(match?.slice(1), paramValues);
     }
-  });
-
-  it('throws on ambiguous params', () => {
-    assert.throws(() => toRegExp('http://remix.run/(hello-:world)goodbye'));
   });
 });

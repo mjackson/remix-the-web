@@ -1,3 +1,4 @@
+import type * as AST from './ast.ts';
 import { err, ok, type Result } from './result.ts';
 import { split } from './split.ts';
 
@@ -6,9 +7,8 @@ export type ParseError = {
   index: number;
 };
 
-type Span = [beginIndex: number, endIndex: number];
 type Token = {
-  span: Span;
+  span: AST.Span;
 } & ({ type: '(' | ')' } | { type: 'param'; name: string } | { type: 'text'; text: string });
 
 type Tokenizer = (source: string, index: number) => Result<Token, ParseError> | null;
@@ -60,26 +60,20 @@ const text =
     return ok({ type: 'text', text, span: [index, index + text.length] });
   };
 
-const tokenizers: Record<PartName, ReturnType<typeof tokenize>> = {
+const tokenizers: Record<AST.PartName, ReturnType<typeof tokenize>> = {
   protocol: tokenize([parens, text(/^[^():?/.]+/)]),
   hostname: tokenize([parens, param, text(/^[^():]+/)]),
   pathname: tokenize([parens, param, text(/^[^():]+/)]),
   search: tokenize([text(/^.*/)]),
 };
 
-type PartName = 'protocol' | 'hostname' | 'pathname' | 'search';
-type Optional = { type: 'optional'; option: Array<Param | Text>; span: Span };
-type Param = { type: 'param'; name: string; span: Span };
-type Text = { type: 'text'; text: string; span: Span };
-type Part = Array<Optional | Param | Text>;
-
-function parsePart(partName: PartName, part: string): Result<Part, ParseError> {
+function parsePart(partName: AST.PartName, part: string): Result<AST.Part, ParseError> {
   const tokens = tokenizers[partName](part);
   if (!tokens.ok) return tokens;
 
-  const result: Part = [];
+  const result: AST.Part = [];
 
-  let optional: Optional | null = null;
+  let optional: AST.Optional | null = null;
   for (const token of tokens.value) {
     if (token.type === '(') {
       // nested paren error?
@@ -110,14 +104,12 @@ function parsePart(partName: PartName, part: string): Result<Part, ParseError> {
   return ok(result);
 }
 
-export type AST = Partial<Record<PartName, Part>>;
-
-export function parse(pattern: string): Result<AST, ParseError> {
-  const ast: AST = {};
+export function parse(pattern: string): Result<AST.Pattern, ParseError> {
+  const ast: AST.Pattern = {};
 
   const parts = split(pattern);
 
-  const partNames = Object.keys(parts) as Array<PartName>;
+  const partNames = Object.keys(parts) as Array<AST.PartName>;
   for (const partName of partNames) {
     const part = parts[partName];
     if (!part) continue;

@@ -1,95 +1,60 @@
-import { extractHostname, extractPathname, extractProtocol } from '../lib/route-pattern-helpers.ts';
+import * as AST from './ast.ts';
 
-// TODO:
-// - [ ] handle `*` params (anywhere in hostname or pathname)
-
-const identifierRE = /[a-zA-Z_$][\w$]*/;
-const paramNameRE = new RegExp('^:(' + identifierRE.source + ')');
 const escape = (source: string) => source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-// TODO: handle ambiguous/bad params more gracefully
-const ambiguousParamNameRE = new RegExp(':(' + identifierRE.source + ')' + /\)(?:([\w$]+))/.source);
-
-export function toRegExp(pattern: string) {
-  const badPattern = ambiguousParamNameRE.exec(pattern);
-  if (badPattern) {
-    throw new Error(`Bad pattern: ${pattern} due to ':${badPattern[1]})${badPattern[2]}'`);
-  }
-
-  const _protocol = parse(extractProtocol(pattern), [parseOptionals()]);
-  const protocol = (_protocol === '' ? '\\w+:' : _protocol) + '//';
-
+export function toRegExp(ast: AST.Pattern) {
   const paramNames: Array<string> = [];
-  const hostname = parse(extractHostname(pattern), [
-    parseOptionals(),
-    parseParams((p) => paramNames.push(p)),
-  ]);
-  const pathname = parse(extractPathname(pattern), [
-    parseOptionals(),
-    parseParams((p) => paramNames.push(p)),
-  ]);
-  return {
-    regexp: new RegExp('^' + protocol + hostname + pathname + '$'),
-    paramNames,
-  };
+
+  let source = '';
+  source += ast.protocol === undefined ? '\\w+' : partToRegExp(ast.protocol);
+  source += escape('://');
+  source +=
+    ast.hostname === undefined
+      ? /[^/]*/
+      : partToRegExp(ast.hostname, (param) => paramNames.push(param.name));
+
+  if (ast.pathname) {
+    source += escape('/');
+    source += partToRegExp(ast.pathname, (param) => paramNames.push(param.name));
+  }
+  return { regexp: new RegExp('^' + source + '$'), paramNames };
+
+  // TODO search
+  // if (ast.search) {
+  //   source += escape('?');
+  //   source += ast.search === undefined ? /.*/ : partToRegExp(ast.search); // TODO
+  // }
 }
 
-type Parser = (text: string, index: number) => { result: string; index: number } | null;
-
-const parse = (text: string, parsers: Array<Parser> = []) => {
+function partToRegExp(part: AST.Part, onParam?: (param: AST.Param) => void) {
   let source = '';
-  let i = 0;
-  iter: while (i < text.length) {
-    for (const parser of parsers) {
-      const parsed = parser(text, i);
-      if (parsed) {
-        source += parsed.result;
-        i = parsed.index;
-        continue iter;
+
+  for (const item of part) {
+    if (item.type === 'optional') {
+      source += '(?:';
+      for (const optionItem of item.option) {
+        if (optionItem.type === 'param') {
+          source += '(\\w+)';
+          onParam?.(optionItem);
+          continue;
+        }
+        if (optionItem.type === 'text') {
+          source += escape(optionItem.text);
+          continue;
+        }
       }
+      source += ')?';
+      continue;
     }
-    source += escape(text[i]);
-    i += 1;
+    if (item.type === 'param') {
+      source += '(\\w+)';
+      onParam?.(item);
+      continue;
+    }
+    if (item.type === 'text') {
+      source += escape(item.text);
+      continue;
+    }
   }
   return source;
-};
-
-const parseOptionals = (): Parser => {
-  const stack: Array<number> = [];
-  return (text, index) => {
-    const char = text[index];
-    if (char === '(') {
-      if (stack.length > 0) throw new Error('Nested parens');
-      stack.push(index);
-      return {
-        result: '(?:',
-        index: index + 1,
-      };
-    }
-    if (char === ')') {
-      if (stack.length === 0) throw new Error('Unmatched close parens');
-      stack.pop();
-      return {
-        result: ')?',
-        index: index + 1,
-      };
-    }
-    if (index === text.length && stack.length > 0) {
-      throw new Error('Unmatched open paren');
-    }
-    return null;
-  };
-};
-
-const parseParams = (callback: (paramName: string) => void): Parser => {
-  return (text, index) => {
-    const match = paramNameRE.exec(text.slice(index));
-    if (!match) return null;
-    const paramName = match[1];
-    callback(paramName);
-    return {
-      result: '(\\w+)',
-      index: index + match[0].length,
-    };
-  };
-};
+}
