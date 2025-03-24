@@ -1,9 +1,6 @@
-export type Split = {
-  protocol?: string;
-  hostname?: string;
-  pathname?: string;
-  search?: string;
-};
+type PartName = 'protocol' | 'hostname' | 'pathname' | 'search';
+type Split = Partial<Record<PartName, string>>;
+
 export const split = (pattern: string): Split => {
   let index = 0;
   const result: Split = {};
