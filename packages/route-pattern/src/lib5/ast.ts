@@ -13,9 +13,9 @@ export type Pattern = {
   search: string;
 };
 
-export function visit(
+export function traverse(
   part: Part,
-  visitors: {
+  visit: {
     optional?: (node: Optional) => void;
     param?: (node: Param, optional: Optional | null) => void;
     text?: (node: Text, optional: Optional | null) => void;
@@ -23,22 +23,22 @@ export function visit(
 ) {
   for (const node of part) {
     if (node.type === 'text') {
-      visitors.text?.(node, null);
+      visit.text?.(node, null);
       continue;
     }
     if (node.type === 'param') {
-      visitors.param?.(node, null);
+      visit.param?.(node, null);
       continue;
     }
     if (node.type === 'optional') {
-      visitors.optional?.(node);
+      visit.optional?.(node);
       for (const item of node.items) {
         if (item.type === 'text') {
-          visitors.text?.(item, node);
+          visit.text?.(item, node);
           continue;
         }
         if (item.type === 'param') {
-          visitors.param?.(item, node);
+          visit.param?.(item, node);
           continue;
         }
       }

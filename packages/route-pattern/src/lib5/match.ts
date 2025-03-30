@@ -29,7 +29,7 @@ function discover(pattern: AST.Pattern) {
   const paramIds: Map<AST.Span[0], number> = new Map();
   const optionalIds: Map<AST.Span[0], number> = new Map();
   for (const part of [pattern.protocol, pattern.hostname, pattern.pathname]) {
-    AST.visit(part, {
+    AST.traverse(part, {
       param: (node) => {
         paramIds.set(node.span[0], paramNames.length);
         paramNames.push(node.name);
@@ -67,7 +67,7 @@ function getVariant({
     };
 
     let source = '';
-    AST.visit(part, {
+    AST.traverse(part, {
       text: (node, optional) => {
         if (!optional || shouldUse(optional)) {
           source += node.text;
@@ -84,12 +84,15 @@ function getVariant({
     return source;
   }
 
+  const protocol = getPartVariant(pattern.protocol);
+  const hostname = getPartVariant(pattern.hostname);
+  const pathname = getPartVariant(pattern.pathname);
   const paramSlots = paramNames.map((name, i) => [name, paramIndices.has(i)] as [string, boolean]);
 
   return {
-    protocol: getPartVariant(pattern.protocol),
-    hostname: getPartVariant(pattern.hostname),
-    pathname: getPartVariant(pattern.pathname),
+    protocol,
+    hostname,
+    pathname,
     search: pattern.search,
     paramSlots,
   };
