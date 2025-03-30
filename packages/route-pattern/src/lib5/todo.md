@@ -1,0 +1,3 @@
+- [x] parse: optionals + pattern param names + param id `Array<Optional<Array<Text | Param>> | Text | Param>`
+- [x] variants : state-based visitor, push encountered param indices
+- [ ] insert into tree (segmentize)
