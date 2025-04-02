@@ -1,8 +1,8 @@
 import * as assert from 'node:assert';
 import { describe, it } from 'node:test';
 
-import { parse } from './parse.ts';
-import { variants } from './match.ts';
+import { parse } from '../parse.ts';
+import { variants } from './variants.ts';
 
 describe('variants', () => {
   it('works', () => {
@@ -11,8 +11,8 @@ describe('variants', () => {
     assert.deepStrictEqual(actual, [
       {
         protocol: 'http',
-        hostname: 'remix.run',
-        pathname: 'products/:',
+        hostname: ['remix', 'run'],
+        pathname: ['products', ':'],
         search: '',
         paramSlots: [
           ['sub', false],
@@ -22,8 +22,8 @@ describe('variants', () => {
       },
       {
         protocol: 'https',
-        hostname: 'remix.run',
-        pathname: 'products/:',
+        hostname: ['remix', 'run'],
+        pathname: ['products', ':'],
         search: '',
         paramSlots: [
           ['sub', false],
@@ -33,8 +33,8 @@ describe('variants', () => {
       },
       {
         protocol: 'http',
-        hostname: ':.remix.run',
-        pathname: 'products/:',
+        hostname: [':', 'remix', 'run'],
+        pathname: ['products', ':'],
         search: '',
         paramSlots: [
           ['sub', true],
@@ -44,8 +44,8 @@ describe('variants', () => {
       },
       {
         protocol: 'https',
-        hostname: ':.remix.run',
-        pathname: 'products/:',
+        hostname: [':', 'remix', 'run'],
+        pathname: ['products', ':'],
         search: '',
         paramSlots: [
           ['sub', true],
@@ -55,8 +55,8 @@ describe('variants', () => {
       },
       {
         protocol: 'http',
-        hostname: 'remix.run',
-        pathname: 'products/:/v:',
+        hostname: ['remix', 'run'],
+        pathname: ['products', ':', 'v:'],
         search: '',
         paramSlots: [
           ['sub', false],
@@ -66,8 +66,8 @@ describe('variants', () => {
       },
       {
         protocol: 'https',
-        hostname: 'remix.run',
-        pathname: 'products/:/v:',
+        hostname: ['remix', 'run'],
+        pathname: ['products', ':', 'v:'],
         search: '',
         paramSlots: [
           ['sub', false],
@@ -77,8 +77,8 @@ describe('variants', () => {
       },
       {
         protocol: 'http',
-        hostname: ':.remix.run',
-        pathname: 'products/:/v:',
+        hostname: [':', 'remix', 'run'],
+        pathname: ['products', ':', 'v:'],
         search: '',
         paramSlots: [
           ['sub', true],
@@ -88,8 +88,8 @@ describe('variants', () => {
       },
       {
         protocol: 'https',
-        hostname: ':.remix.run',
-        pathname: 'products/:/v:',
+        hostname: [':', 'remix', 'run'],
+        pathname: ['products', ':', 'v:'],
         search: '',
         paramSlots: [
           ['sub', true],

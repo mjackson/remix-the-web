@@ -1,9 +1,9 @@
-import * as AST from './ast.ts';
+import * as AST from '../ast.ts';
 
-type Variant = {
+export type Variant = {
   protocol: string;
-  hostname: string; // TODO segments: array string?
-  pathname: string; // TODO segments: array string?
+  hostname: Array<string>;
+  pathname: Array<string>;
   search: string;
   paramSlots: Array<[string, boolean]>;
 };
@@ -85,8 +85,8 @@ function getVariant({
   }
 
   const protocol = getPartVariant(pattern.protocol);
-  const hostname = getPartVariant(pattern.hostname);
-  const pathname = getPartVariant(pattern.pathname);
+  const hostname = getPartVariant(pattern.hostname).split('.');
+  const pathname = getPartVariant(pattern.pathname).split('/');
   const paramSlots = paramNames.map((name, i) => [name, paramIndices.has(i)] as [string, boolean]);
 
   return {
@@ -96,18 +96,4 @@ function getVariant({
     search: pattern.search,
     paramSlots,
   };
-}
-
-function getParams(paramSlots: Array<[string, boolean]>, paramValues: Array<string>) {
-  const params: Record<string, Array<string | undefined>> = {};
-  let i = 0;
-  for (const [name, isDefined] of paramSlots) {
-    params[name] ??= [];
-    if (isDefined) {
-      params[name].push(paramValues[i++]);
-    } else {
-      params[name].push(undefined);
-    }
-  }
-  return params;
 }
