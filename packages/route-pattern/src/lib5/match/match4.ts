@@ -29,16 +29,16 @@ type MatchResult = {
   params: Params;
 };
 
+function backtrack(state: State) {
+  state.pop();
+  const parent = state.at(-1);
+  if (parent) {
+    parent.bookmark = parent.bookmark === undefined ? 0 : parent.bookmark + 1;
+  }
+}
+
 export function* match(tree: Node, url: _URL): Generator<MatchResult> {
   const state: State = [{ urlIndex: 0, node: tree }];
-
-  const backtrack = () => {
-    state.pop();
-    const parent = state.at(-1);
-    if (parent) {
-      parent.bookmark = parent.bookmark === undefined ? 0 : parent.bookmark + 1;
-    }
-  };
 
   outer: while (state.length > 0) {
     const current = state.at(-1)!;
@@ -50,7 +50,7 @@ export function* match(tree: Node, url: _URL): Generator<MatchResult> {
         const params = getParams(route.variant.paramSlots, paramValues);
         yield { ...route, params };
       }
-      backtrack();
+      backtrack(state);
       continue;
     }
 
@@ -88,7 +88,7 @@ export function* match(tree: Node, url: _URL): Generator<MatchResult> {
 
     // todo: glob
 
-    backtrack();
+    backtrack(state);
   }
 }
 

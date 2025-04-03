@@ -50,48 +50,54 @@ function createChildren(): Children {
   };
 }
 
-export function createTree(pattern: AST.Pattern): Node {
+export function createTree(patterns: Array<AST.Pattern>): Node {
   const root = createNode();
   const withDynamic: Set<Children> = new Set();
 
-  for (const variant of variants(pattern)) {
-    let node = root;
+  for (const pattern of patterns) {
+    for (const variant of variants(pattern)) {
+      console.log('variant:', variant);
+      let node = root;
 
-    // todo handle omitted protocol
-    const child = createNode();
-    node.protocol.static.set(variant.protocol, child);
-    node = child;
-
-    // hostname
-    for (const segment of variant.hostname) {
-      const isDynamic = segment.includes(':');
-      const children = isDynamic ? node.hostname.dynamic : node.hostname.static;
-      let child = children.get(segment);
+      // todo handle omitted protocol
+      let child = node.protocol.static.get(variant.protocol);
       if (!child) {
         child = createNode();
-        children.set(segment, child);
-        withDynamic.add(node.hostname);
+        node.protocol.static.set(variant.protocol, child);
       }
       node = child;
-    }
 
-    // pathname
-    for (const segment of variant.pathname) {
-      const isDynamic = segment.includes(':');
-      const children = isDynamic ? node.pathname.dynamic : node.pathname.static;
-      let child = children.get(segment);
-      if (!child) {
-        child = createNode();
-        children.set(segment, child);
-        withDynamic.add(node.pathname);
+      // hostname
+      for (const segment of variant.hostname) {
+        const isDynamic = segment.includes(':');
+        const children = isDynamic ? node.hostname.dynamic : node.hostname.static;
+        let child = children.get(segment);
+        if (!child) {
+          child = createNode();
+          children.set(segment, child);
+          withDynamic.add(node.hostname);
+        }
+        node = child;
       }
-      node = child;
-    }
 
-    if (node.route) {
-      throw new RouteConflictError(node.route, { pattern, variant });
+      // pathname
+      for (const segment of variant.pathname) {
+        const isDynamic = segment.includes(':');
+        const children = isDynamic ? node.pathname.dynamic : node.pathname.static;
+        let child = children.get(segment);
+        if (!child) {
+          child = createNode();
+          children.set(segment, child);
+          withDynamic.add(node.pathname);
+        }
+        node = child;
+      }
+
+      if (node.route) {
+        throw new RouteConflictError(node.route, { pattern, variant });
+      }
+      node.route = { pattern, variant };
     }
-    node.route = { pattern, variant };
   }
 
   for (const children of withDynamic) {
