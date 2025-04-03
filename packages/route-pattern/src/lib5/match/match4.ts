@@ -1,29 +1,11 @@
 import type * as AST from '../ast.ts';
+import type { Node } from './tree2.ts';
 import type { Variant } from './variants';
 
 export type _URL = Array<{
   type: 'protocol' | 'hostname' | 'pathname';
   segment: string;
 }>;
-
-type Route = {
-  pattern: AST.Pattern;
-  variant: Variant;
-};
-
-type Children = {
-  static: Map<string, Node>;
-  dynamic: Map<string, Node>; // ":" -> , "michael-:-jackson" ->
-  dynamicOrder: Array<[string, RegExp]>; // michael-(\w+)-jackson
-};
-
-export type Node = {
-  protocol: Children;
-  hostname: Children;
-  pathname: Children;
-
-  route?: Route;
-};
 
 type StateItem = {
   urlIndex: number;
@@ -41,7 +23,9 @@ type StateItem = {
 };
 type State = Array<StateItem>;
 
-type MatchResult = Route & {
+type MatchResult = {
+  pattern: AST.Pattern;
+  variant: Variant;
   params: Record<string, Array<string>>;
 };
 
@@ -99,7 +83,7 @@ export function* match(tree: Node, url: _URL): Generator<MatchResult> {
       continue outer;
     }
 
-    // todo glob
+    // todo: glob
 
     backtrack();
   }

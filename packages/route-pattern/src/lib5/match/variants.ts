@@ -1,5 +1,6 @@
 import * as AST from '../ast.ts';
 
+// todo reverse hostname
 export type Variant = {
   protocol: string;
   hostname: Array<string>;
