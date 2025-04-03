@@ -26,7 +26,7 @@ type State = Array<StateItem>;
 type MatchResult = {
   pattern: AST.Pattern;
   variant: Variant;
-  params: Record<string, Array<string>>;
+  params: Params;
 };
 
 export function* match(tree: Node, url: _URL): Generator<MatchResult> {
@@ -44,8 +44,11 @@ export function* match(tree: Node, url: _URL): Generator<MatchResult> {
     const current = state.at(-1)!;
 
     if (current.urlIndex === url.length) {
-      if (current.node.route) {
-        yield { ...current.node.route, params: {} }; // todo params
+      const { route } = current.node;
+      if (route) {
+        const paramValues = state.flatMap((item) => item.paramValues ?? []);
+        const params = getParams(route.variant.paramSlots, paramValues);
+        yield { ...route, params };
       }
       backtrack();
       continue;
@@ -87,4 +90,19 @@ export function* match(tree: Node, url: _URL): Generator<MatchResult> {
 
     backtrack();
   }
+}
+
+type Params = Record<string, Array<string | undefined>>;
+function getParams(paramSlots: Array<[string, boolean]>, paramValues: Array<string>): Params {
+  const params: Params = {};
+  let i = 0;
+  for (const [name, isDefined] of paramSlots) {
+    params[name] ??= [];
+    if (isDefined) {
+      params[name].push(paramValues[i++]);
+    } else {
+      params[name].push(undefined);
+    }
+  }
+  return params;
 }
