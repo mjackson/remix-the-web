@@ -11,7 +11,7 @@ describe('variants', () => {
     assert.deepStrictEqual(actual, [
       {
         protocol: 'http',
-        hostname: ['remix', 'run'],
+        hostname: ['run', 'remix'],
         pathname: ['products', ':'],
         search: '',
         paramSlots: [
@@ -22,7 +22,7 @@ describe('variants', () => {
       },
       {
         protocol: 'https',
-        hostname: ['remix', 'run'],
+        hostname: ['run', 'remix'],
         pathname: ['products', ':'],
         search: '',
         paramSlots: [
@@ -33,7 +33,7 @@ describe('variants', () => {
       },
       {
         protocol: 'http',
-        hostname: [':', 'remix', 'run'],
+        hostname: ['run', 'remix', ':'],
         pathname: ['products', ':'],
         search: '',
         paramSlots: [
@@ -44,7 +44,7 @@ describe('variants', () => {
       },
       {
         protocol: 'https',
-        hostname: [':', 'remix', 'run'],
+        hostname: ['run', 'remix', ':'],
         pathname: ['products', ':'],
         search: '',
         paramSlots: [
@@ -55,7 +55,7 @@ describe('variants', () => {
       },
       {
         protocol: 'http',
-        hostname: ['remix', 'run'],
+        hostname: ['run', 'remix'],
         pathname: ['products', ':', 'v:'],
         search: '',
         paramSlots: [
@@ -66,7 +66,7 @@ describe('variants', () => {
       },
       {
         protocol: 'https',
-        hostname: ['remix', 'run'],
+        hostname: ['run', 'remix'],
         pathname: ['products', ':', 'v:'],
         search: '',
         paramSlots: [
@@ -77,7 +77,7 @@ describe('variants', () => {
       },
       {
         protocol: 'http',
-        hostname: [':', 'remix', 'run'],
+        hostname: ['run', 'remix', ':'],
         pathname: ['products', ':', 'v:'],
         search: '',
         paramSlots: [
@@ -88,7 +88,7 @@ describe('variants', () => {
       },
       {
         protocol: 'https',
-        hostname: [':', 'remix', 'run'],
+        hostname: ['run', 'remix', ':'],
         pathname: ['products', ':', 'v:'],
         search: '',
         paramSlots: [

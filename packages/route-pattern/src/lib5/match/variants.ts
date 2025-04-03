@@ -1,6 +1,5 @@
 import * as AST from '../ast.ts';
 
-// todo reverse hostname
 export type Variant = {
   protocol: string;
   hostname: Array<string>;
@@ -86,7 +85,7 @@ function getVariant({
   }
 
   const protocol = getPartVariant(pattern.protocol);
-  const hostname = getPartVariant(pattern.hostname).split('.');
+  const hostname = getPartVariant(pattern.hostname).split('.').reverse();
   const pathname = getPartVariant(pattern.pathname).split('/');
   const paramSlots = paramNames.map((name, i) => [name, paramIndices.has(i)] as [string, boolean]);
 
