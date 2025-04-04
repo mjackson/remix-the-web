@@ -6,23 +6,35 @@ import { parse } from '../parse.ts';
 import { match, type _URL } from './match4.ts';
 
 describe('match', () => {
+  it('backtracks', () => {
+    const tree = createTree([
+      parse('http://remix.run/a/b/c/d/e'),
+      parse('http://remix.run/a/b/c/:d/e'),
+      parse('http://remix.run/a/b/:c/d/e'),
+      parse('http://remix.run/a/:b/c/d/e'),
+      parse('http://remix.run/:a/b/c/d/e'),
+      parse('http://remix.run/:a/:b/:c/:d/:e'),
+    ]);
+
+    const routes = match(tree, 'http://remix.run/a/b/c/d/z');
+    const route = routes.next();
+    // console.log({ route });
+    assert.deepStrictEqual(route, {});
+  });
+
   it('works', () => {
-    const patterns = [
+    const tree = createTree([
       parse('http(s)://(:sub.)remix.run/products/:id(/v:version)'),
       parse('http://react-router.com/blog/:slug'),
-    ];
-    const tree = createTree(patterns);
-    stringify('protocol', tree.protocol);
-    const url: _URL = [
-      { type: 'protocol', segment: 'http' },
-      { type: 'hostname', segment: 'run' },
-      { type: 'hostname', segment: 'remix' },
-      { type: 'pathname', segment: 'products' },
-      { type: 'pathname', segment: '1' },
-      { type: 'pathname', segment: 'v7' },
-    ];
-    const routes = match(tree, url);
+    ]);
+
+    stringify('protocol', tree.protocol); // debug: console log the tree structure
+
+    const start = performance.now();
+    const routes = match(tree, 'http://remix.run/products/1/v7');
     const route = routes.next();
+    console.log(`Match took ${performance.now() - start}ms`);
+
     assert.deepStrictEqual(route, {});
   });
 });

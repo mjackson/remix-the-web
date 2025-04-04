@@ -14,7 +14,7 @@ export class ParseError extends Error {
   // todo nice error message
 }
 
-function split(source: string): Partial<Record<keyof AST.Pattern, AST.Span>> {
+export function split(source: string): Partial<Record<keyof AST.Pattern, AST.Span>> {
   let index = 0;
 
   const result: Partial<Record<keyof AST.Pattern, AST.Span>> = {};

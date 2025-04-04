@@ -1,4 +1,5 @@
 import type * as AST from '../ast.ts';
+import { split } from '../parse.ts';
 import type { Node } from './tree2.ts';
 import type { Variant } from './variants';
 
@@ -37,7 +38,24 @@ function backtrack(state: State) {
   }
 }
 
-export function* match(tree: Node, url: _URL): Generator<MatchResult> {
+function toURL(url: string): _URL {
+  const parts = split(url);
+  const protocol = url.slice(...parts.protocol!);
+  const hostname = url
+    .slice(...parts.hostname!)
+    .split('.')
+    .reverse();
+  const pathname = url.slice(...parts.pathname!).split('/');
+
+  return [
+    { type: 'protocol', segment: protocol },
+    ...hostname.map((segment) => ({ type: 'hostname' as const, segment })),
+    ...pathname.map((segment) => ({ type: 'pathname' as const, segment })),
+  ];
+}
+
+export function* match(tree: Node, _url: string): Generator<MatchResult> {
+  const url = toURL(_url);
   const state: State = [{ urlIndex: 0, node: tree }];
 
   outer: while (state.length > 0) {
@@ -71,7 +89,7 @@ export function* match(tree: Node, url: _URL): Generator<MatchResult> {
     }
 
     // dynamic
-    for (let i = current.bookmark; children.dynamicOrder.length; i++) {
+    for (let i = current.bookmark; i < children.dynamicOrder.length; i++) {
       const [key, regex] = children.dynamicOrder[i];
       const match = regex.exec(segment);
       if (!match) continue;

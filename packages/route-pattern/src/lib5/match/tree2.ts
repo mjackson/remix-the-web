@@ -56,7 +56,6 @@ export function createTree(patterns: Array<AST.Pattern>): Node {
 
   for (const pattern of patterns) {
     for (const variant of variants(pattern)) {
-      console.log('variant:', variant);
       let node = root;
 
       // todo handle omitted protocol
