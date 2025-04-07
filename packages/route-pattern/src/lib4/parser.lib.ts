@@ -11,7 +11,8 @@ export class ParseError extends Error {
   }
 }
 
-export const expected = (index: number) => new ParseError('expected', index);
+export const expected = (index: number, message: string) =>
+  new ParseError(`expected:${message}`, index);
 
 type State = {
   source: string;
@@ -46,8 +47,9 @@ export const choice = <const T extends Parser>(parsers: Array<T>): Parser<GetDat
     for (const parser of parsers) {
       const result = parser.parse(state) as ParseResult<GetData<T>>;
       if (result.ok) return result;
-      // TODO: use error parsed length as a decider
-      error = result.error;
+      if (error === undefined || result.error.index > error.index) {
+        error = result.error;
+      }
     }
     return err(error!);
   });
@@ -87,7 +89,7 @@ export const many0 = <Data>(parser: Parser<Data>): Parser<Array<Data>> => {
 export const lit = <Literal extends string>(literal: Literal): Parser<Literal> => {
   return new Parser(({ source, index }) => {
     if (!source.slice(index).startsWith(literal)) {
-      return err(expected(index));
+      return err(expected(index, `literal '${literal}'`));
     }
     return ok({ source, index: index + literal.length, data: literal });
   });
@@ -96,15 +98,18 @@ export const lit = <Literal extends string>(literal: Literal): Parser<Literal> =
 export const regex = (regexp: RegExp): Parser<string> => {
   return new Parser(({ source, index }) => {
     const match = regexp.exec(source.slice(index));
-    if (!match) return err(expected(index));
+    if (!match) return err(expected(index, `regex: ${regexp.source}`));
     return ok({ source, index: index + match[0].length, data: match[0] });
   });
 };
 
-export const opt = <Data>(parser: Parser<Data>): Parser<Data | null> => {
+export const end = <Data>(parser: Parser<Data>): Parser<Data> => {
   return new Parser((state) => {
     const result = parser.parse(state);
-    if (!result.ok) return ok({ ...state, data: null as Data });
+    if (!result.ok) return result;
+    if (result.value.index !== result.value.source.length) {
+      return err(expected(result.value.index, 'eof'));
+    }
     return result;
   });
 };

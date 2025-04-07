@@ -81,12 +81,8 @@ function parsePart({
       continue;
     }
 
-    if (token.type === 'param' || token.type === 'separator' || token.type === 'text') {
-      if (optional) {
-        optional.option.push(token);
-      } else {
-        result.push(token);
-      }
+    if (token.type === 'param' || token.type === 'text' || token.type === 'separator') {
+      optional ? optional.option.push(token) : result.push(token);
     }
   }
   if (optional) {
@@ -173,3 +169,8 @@ const tokenizers: Record<AST.PartName, ReturnType<typeof tokenize>> = {
   pathname: tokenize([parens, param, separator('/'), text(/^[^():/]+/)]),
   search: tokenize([text(/^.*/)]),
 };
+
+const tokenizeProtocol = tokenize([parens, text(/^[^():?/.]+/)]);
+function parseProtocol(source: string, span: AST.Span) {
+  const tokens = tokenizeProtocol(source, span);
+}
