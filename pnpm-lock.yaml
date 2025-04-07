@@ -249,12 +249,18 @@ importers:
         specifier: ^1.0.17
         version: 1.0.20
     devDependencies:
+      '@mjackson/fetch-proxy':
+        specifier: workspace:^
+        version: link:../fetch-proxy
       '@mjackson/form-data-parser':
         specifier: workspace:^
         version: link:../form-data-parser
       '@types/node':
         specifier: ^20.14.10
         version: 20.16.1
+      mockdate:
+        specifier: ^3.0.5
+        version: 3.0.5
       tsup:
         specifier: ^8.3.5
         version: 8.3.5(@swc/core@1.5.29(@swc/helpers@0.5.12))(typescript@5.7.2)
@@ -1576,6 +1582,9 @@ packages:
     resolution: {integrity: sha512-+NsyUUAZDmo6YVHzL/stxSu3t9YS1iljliy3BSDrXJ/dkn1KYdmtZODGGjLcc9XLgVVpH4KshHB8XmZgMhaBXg==}
     engines: {node: '>=10'}
     hasBin: true
+
+  mockdate@3.0.5:
+    resolution: {integrity: sha512-iniQP4rj1FhBdBYS/+eQv7j1tadJ9lJtdzgOpvsOHng/GbcDh2Fhdeq+ZRldrPYdXvCyfFUmFeEwEGXZB5I/AQ==}
 
   mrmime@2.0.0:
     resolution: {integrity: sha512-eu38+hdgojoyq63s+yTpN4XMBdt5l8HhMhc4VKLO9KM5caLIBvUm4thi7fFaxyTmCKeNnXZ5pAlBwCUnhA09uw==}
@@ -3138,6 +3147,8 @@ snapshots:
       rimraf: 5.0.10
 
   mkdirp@3.0.1: {}
+
+  mockdate@3.0.5: {}
 
   mrmime@2.0.0: {}
 

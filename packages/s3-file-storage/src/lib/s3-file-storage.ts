@@ -198,6 +198,9 @@ export class S3FileStorage implements FileStorage {
             {
               method: 'PUT',
               body: chunk,
+              headers: {
+                'Content-Length': chunk.byteLength.toString(),
+              },
             }
           );
           
@@ -225,17 +228,8 @@ export class S3FileStorage implements FileStorage {
       }
       
       // Complete the multipart upload
-      const partsXml = parts.map(part => 
-        `<Part>
-          <PartNumber>${part.PartNumber}</PartNumber>
-          <ETag>${part.ETag}</ETag>
-        </Part>`
-      ).join('');
-      
-      const completeXml = 
-        `<CompleteMultipartUpload>
-          ${partsXml}
-        </CompleteMultipartUpload>`;
+      const partsXml = parts.map(part => `<Part><PartNumber>${part.PartNumber}</PartNumber><ETag>${part.ETag}</ETag></Part>`).join('');
+      const completeXml = `<CompleteMultipartUpload>${partsXml}</CompleteMultipartUpload>`;
       
       const completeResponse = await this.aws.fetch(
         `${this.getObjectUrl(key)}?uploadId=${uploadId}`,
@@ -244,6 +238,7 @@ export class S3FileStorage implements FileStorage {
           body: completeXml,
           headers: {
             'Content-Type': 'application/xml',
+            'Content-Length': completeXml.length.toString(),
           },
         }
       );
@@ -427,16 +422,19 @@ export class S3FileStorage implements FileStorage {
     
     // Create the result based on whether metadata is requested
     if (includeMetadata) {
-      const files: FileMetadata[] = await Promise.all(keys.map(async key => {
+      const files: FileMetadata[] = [];
+      
+      // TODO: make many requests in a queue
+      for (const key of keys) {
         const file = await this.get(key);
-        return {
+        files.push({
           key,
           lastModified: file?.lastModified || Date.now(),
           name: file?.name || key.split('/').pop() || key,
           size: file?.size || 0,
           type: file?.type || '',
-        };
-      }));
+        });
+      }
       
       return {
         files: files as any,

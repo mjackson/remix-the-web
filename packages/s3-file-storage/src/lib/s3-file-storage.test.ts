@@ -1,20 +1,35 @@
 import * as assert from 'node:assert/strict';
 import { afterEach, before, after, describe, it } from 'node:test';
-import { resolve } from 'node:path';
+import { resolve, dirname } from 'node:path';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseFormData } from '@mjackson/form-data-parser';
 import { S3FileStorage } from './s3-file-storage.ts';
-import { MINIO_PORT, startMinioServer, stopMinioServer, createBucket, clearAllMinioData } from '../../test/minio.ts';
+import { S3_ENDPOINT, startMinioServer, stopMinioServer, createBucket, clearAllMinioData } from '../../test/minio.ts';
+import { overrideGlobalFetch, resetGlobalFetch } from '../../test/record-replay.ts';
 
 // Test bucket name
 const TEST_BUCKET = 'test-bucket';
 
+// For controlling record/playback mode
+const RECORD_MODE = process.env.RECORD_MODE === 'record' ? 'record' : 'playback';
+
+// Get the directory name in ES modules
+const currentDir = dirname(fileURLToPath(import.meta.url));
+// Directory for test fixtures
+const FIXTURES_DIR = resolve(currentDir, '../../test/fixtures');
+
 describe('S3FileStorage', () => {
   let storage: S3FileStorage;
+  let minioStarted = false;
 
   before(async () => {
-    await startMinioServer();
-
-    await createBucket(TEST_BUCKET);
+    // Only start the MinIO server in record mode
+    if (RECORD_MODE === 'record') {
+      await startMinioServer();
+      await createBucket(TEST_BUCKET);
+      minioStarted = true;
+    }
 
     // Create test storage client connected to MinIO
     storage = new S3FileStorage({
@@ -22,26 +37,39 @@ describe('S3FileStorage', () => {
       secretAccessKey: 'minioadmin',
       region: 'us-east-1',
       bucket: TEST_BUCKET,
-      endpoint: `http://localhost:${MINIO_PORT}`,
+      endpoint: S3_ENDPOINT,
       forcePathStyle: true,
     });
   });
 
   after(async () => {
-    await stopMinioServer();
-    await clearAllMinioData();
+    if (minioStarted) {
+      await stopMinioServer();
+      await clearAllMinioData();
+    }
   });
 
   afterEach(async () => {
-    // Remove all the files
-    const objects = await storage.list();
-    for (const object of objects.files) {
+    // Reset global fetch after each test
+    resetGlobalFetch();
+
+    // Only remove files in record mode
+    if (RECORD_MODE === 'record') {
+      const objects = await storage.list();
+      for (const object of objects.files) {
         await storage.remove(object.key);
+      }
     }
   });
 
   it('stores and retrieves files', async () => {
-    const lastModified = Date.now();
+    // Override global fetch with record or playback mode
+    await overrideGlobalFetch(S3_ENDPOINT, {
+      mode: RECORD_MODE,
+      recordingFilePath: join(FIXTURES_DIR, 'stores_and_retrieves_files.json'),
+    });
+
+    const lastModified = new Date('1999-12-31T23:59:59Z').getTime();
     const file = new File(['Hello, world!'], 'hello.txt', {
       type: 'text/plain',
       lastModified,
@@ -69,13 +97,17 @@ describe('S3FileStorage', () => {
   });
 
   it('lists files with pagination', async () => {
-    const allKeys = ['a', 'b', 'c', 'd', 'e'];
+    // Override global fetch with record or playback mode
+    await overrideGlobalFetch(S3_ENDPOINT, {
+      mode: RECORD_MODE,
+      recordingFilePath: join(FIXTURES_DIR, 'lists_files_with_pagination.json'),
+    });
 
-    await Promise.all(
-      allKeys.map((key) =>
-        storage.set(key, new File([`Hello ${key}!`], `hello.txt`, { type: 'text/plain' })),
-      ),
-    );
+    const allKeys = ['a', 'b', 'c', 'd', 'e'];
+    
+    for (const key of allKeys) {
+      await storage.set(key, new File([`Hello ${key}!`], `hello.txt`, { type: 'text/plain' }));
+    }
 
     const { cursor, files } = await storage.list();
     assert.equal(cursor, undefined);
@@ -98,15 +130,19 @@ describe('S3FileStorage', () => {
   });
 
   it('lists files by key prefix', async () => {
+    // Override global fetch with record or playback mode
+    await overrideGlobalFetch(S3_ENDPOINT, {
+      mode: RECORD_MODE,
+      recordingFilePath: join(FIXTURES_DIR, 'lists_files_by_key_prefix.json'),
+    });
+
     // a limitation of minio (not s3) is objects can't collide with prefixes, so b must be b.ext
     // https://min.io/docs/minio/linux/operations/concepts/thresholds.html#conflicting-objects
     const allKeys = ['a', 'b.ext', 'b/c', 'd', 'e'];
 
-    await Promise.all(
-      allKeys.map((key) =>
-        storage.set(key, new File([`Hello ${key}!`], `hello.txt`, { type: 'text/plain' })),
-      ),
-    );
+    for (const key of allKeys) {
+      await storage.set(key, new File([`Hello ${key}!`], `hello.txt`, { type: 'text/plain' }));
+    }
 
     const { cursor, files } = await storage.list({ prefix: 'b' });
     assert.equal(cursor, undefined);
@@ -115,13 +151,17 @@ describe('S3FileStorage', () => {
   });
 
   it('lists files with metadata', async () => {
+    // Override global fetch with record or playback mode
+    await overrideGlobalFetch(S3_ENDPOINT, {
+      mode: RECORD_MODE,
+      recordingFilePath: join(FIXTURES_DIR, 'lists_files_with_metadata.json'),
+    });
+
     const allKeys = ['a', 'b', 'c', 'd', 'e'];
 
-    await Promise.all(
-      allKeys.map((key) =>
-        storage.set(key, new File([`Hello ${key}!`], `hello.txt`, { type: 'text/plain' })),
-      ),
-    );
+    for (const key of allKeys) {
+      await storage.set(key, new File([`Hello ${key}!`], `hello.txt`, { type: 'text/plain' }));
+    }
 
     const { cursor, files } = await storage.list({ includeMetadata: true });
     assert.equal(cursor, undefined);
@@ -134,7 +174,13 @@ describe('S3FileStorage', () => {
   });
 
   it('handles race conditions', async () => {
-    const lastModified = Date.now();
+    // Override global fetch with record or playback mode
+    await overrideGlobalFetch(S3_ENDPOINT, {
+      mode: RECORD_MODE,
+      recordingFilePath: join(FIXTURES_DIR, 'handles_race_conditions.json'),
+    });
+
+    const lastModified = new Date('1999-12-31T23:59:59Z').getTime();
 
     const file1 = new File(['Hello, world!'], 'hello1.txt', {
       type: 'text/plain',
@@ -161,6 +207,12 @@ describe('S3FileStorage', () => {
 
   describe('integration with form-data-parser', () => {
     it('stores and lists file uploads', async () => {
+      // Override global fetch with record or playback mode
+      await overrideGlobalFetch(S3_ENDPOINT, {
+        mode: RECORD_MODE,
+        recordingFilePath: join(FIXTURES_DIR, 'stores_and_lists_file_uploads.json'),
+      });
+
       const boundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW';
       const request = new Request('http://example.com', {
         method: 'POST',

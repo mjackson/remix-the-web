@@ -1,16 +1,21 @@
 import { chmod, mkdir, writeFile, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, resolve, dirname } from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { AwsClient } from 'aws4fetch';
+import { fileURLToPath } from 'node:url';
 
-const __dirname = new URL('.', import.meta.url).pathname;
-const MINIO_DIR = resolve(__dirname, '../.minio');
+// Get the directory name in ES modules
+const currentDir = dirname(fileURLToPath(import.meta.url));
+const MINIO_DIR = resolve(currentDir, '../.minio');
 const MINIO_DATA_DIR = resolve(MINIO_DIR, 'data');
 const MINIO_BIN_DIR = resolve(MINIO_DIR, 'bin');
 const MINIO_BIN_PATH = join(MINIO_BIN_DIR, 'minio');
 
+// Port used by MinIO server
 export const MINIO_PORT = 9000;
+// S3 endpoint for consistent usage across tests
+export const S3_ENDPOINT = `http://localhost:${MINIO_PORT}`;
 
 const aws = new AwsClient({
     accessKeyId: 'minioadmin',
@@ -93,7 +98,7 @@ export async function clearAllMinioData() {
 
 // Helper to create an S3 bucket
 export async function createBucket(bucketName: string): Promise<void> {
-    await aws.fetch(`http://localhost:${MINIO_PORT}/${bucketName}`, {
+    await aws.fetch(`${S3_ENDPOINT}/${bucketName}`, {
         method: 'PUT'
     });
 }
