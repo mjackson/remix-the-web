@@ -1,101 +1,118 @@
+import type * as AST from '../ast.ts';
+import { split } from '../parse.ts';
 import type { Node } from './tree.ts';
+import type { Variant } from './variants';
 
-type State = {
-  node: Node;
-  child: { type: 'static' | 'dynamic' | 'glob'; index: number };
-  paramValues: Array<string>;
+export type _URL = Array<{
+  type: 'protocol' | 'hostname' | 'pathname';
+  segment: string;
+}>;
 
-  url: { part: 'protocol' | 'hostname' | 'pathname'; index: number };
-};
-
-type State2 = {
-  part: { type: 'protocol' | 'hostname' | 'pathname'; index?: number };
+type StateItem = {
+  urlIndex: number;
   paramValues?: Array<string>;
-  bookmark: { type: 'static' | 'dynamic' | 'glob'; index?: number };
 
-  // convenience
-  node: Node;
+  node: Node; // convenience
+  /**
+   * For backtracking
+   *
+   * undefined -> processing the static match (there can only be one of these)
+   * 0 - dynamic children length -> should start up again at the i-th dynamic child
+   * beyond that -> done! (or glob but this isn't implemented yet)
+   */
+  bookmark?: number;
 };
-type URL = {
-  protocol: string;
-  hostname: Array<string>;
-  pathname: Array<string>;
+type State = Array<StateItem>;
+
+type MatchResult = {
+  pattern: AST.Pattern;
+  variant: Variant;
+  params: Params;
 };
 
-/*
-stack:
-- part: protocol(0), [],       edge: static
-- part: hostname(0), ['blah'], edge: dynamic(3)
-- part: hostname(1), [],       edge: static
-- part: hostname(2), [],       edge: glob
-*/
-
-export function process(
-  stack: Array<State>,
-  url: {
-    protocol: Array<string>; // length 0
-    hostname: Array<string>; // todo reverse!
-    pathname: Array<string>;
-  },
-) {
-  const state = stack.at(-1)!;
-  const part = url[state.url.part];
-  const index = state.url.index ?? 0;
-  if (index === part.length) {
-    // todo end?
-  }
-
-  const segment = part[index];
-  if (state.child.type === 'static') {
-    const child = state.node.staticChildren.get(segment);
-    if (child) {
-      stack.push({
-        node: child,
-        child: { type: 'static', index: 0 },
-        paramValues: state.paramValues,
-        url: { ...state.url, index: state.url.index + 1 },
-      });
-      return;
-    }
-    state.child = { type: 'dynamic', index: 0 };
-    return;
-  }
-
-  if (state.child.type === 'dynamic') {
-    for (let i = state.child.index; i < state.node.dynamicChildrenOrder.length; i++) {
-      const [key, regex] = state.node.dynamicChildrenOrder[i];
-      const match = regex.exec(segment);
-      if (match) {
-        state.child.index = i;
-        const child = state.node.dynamicChildren.get(key)!;
-        stack.push({
-          node: child,
-          child: { type: 'static', index: 0 },
-          paramValues: [...state.paramValues, ...match.slice(1)],
-          url: { ...state.url, index: state.url.index + 1 },
-        });
-        return;
-      }
-    }
-    state.child = { type: 'glob', index: 0 };
-    return;
-  }
-
-  if (state.child.type === 'glob') {
-    if (state.node.glob) {
-      stack.push({
-        node: state.node.glob,
-        child: { type: 'static', index: 0 },
-        paramValues: state.paramValues, // TODO `*` pattern?
-        url: { ...state.url, index: state.url.index + 1 },
-      });
-      return;
-    }
+function backtrack(state: State) {
+  state.pop();
+  const parent = state.at(-1);
+  if (parent) {
+    parent.bookmark = parent.bookmark === undefined ? 0 : parent.bookmark + 1;
   }
 }
 
-function getParams(paramSlots: Array<[string, boolean]>, paramValues: Array<string>) {
-  const params: Record<string, Array<string | undefined>> = {};
+function toURL(url: string): _URL {
+  const parts = split(url);
+  const protocol = url.slice(...parts.protocol!);
+  const hostname = url
+    .slice(...parts.hostname!)
+    .split('.')
+    .reverse();
+  const pathname = url.slice(...parts.pathname!).split('/');
+
+  return [
+    { type: 'protocol', segment: protocol },
+    ...hostname.map((segment) => ({ type: 'hostname' as const, segment })),
+    ...pathname.map((segment) => ({ type: 'pathname' as const, segment })),
+  ];
+}
+
+export function* match(tree: Node, _url: string): Generator<MatchResult> {
+  const url = toURL(_url);
+  const state: State = [{ urlIndex: 0, node: tree }];
+
+  outer: while (state.length > 0) {
+    const current = state.at(-1)!;
+
+    if (current.urlIndex === url.length) {
+      const { route } = current.node;
+      if (route) {
+        const paramValues = state.flatMap((item) => item.paramValues ?? []);
+        const params = getParams(route.variant.paramSlots, paramValues);
+        yield { ...route, params };
+      }
+      backtrack(state);
+      continue;
+    }
+
+    const { type, segment } = url[current.urlIndex];
+    const children = current.node[type];
+
+    // static
+    if (current.bookmark === undefined) {
+      const child = children.static.get(segment);
+      if (child) {
+        state.push({
+          urlIndex: current.urlIndex + 1,
+          node: child,
+        });
+        continue;
+      }
+      current.bookmark = 0;
+    }
+
+    // dynamic
+    for (let i = current.bookmark; i < children.dynamicOrder.length; i++) {
+      const [key, regex] = children.dynamicOrder[i];
+      const match = regex.exec(segment);
+      if (!match) continue;
+
+      const child = children.dynamic.get(key)!;
+      state.push({
+        node: child,
+        paramValues: match.slice(1),
+        urlIndex: current.urlIndex + 1,
+        bookmark: i,
+      });
+      continue outer;
+    }
+
+    // todo: glob
+
+    backtrack(state);
+  }
+}
+
+type Params = Record<string, Array<string | undefined>>;
+function getParams(paramSlots: Array<[string, boolean]>, paramValues: Array<string>): Params {
+  const params: Params = {};
   let i = 0;
   for (const [name, isDefined] of paramSlots) {
     params[name] ??= [];

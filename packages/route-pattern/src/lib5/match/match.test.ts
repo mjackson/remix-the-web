@@ -1,9 +1,9 @@
 import * as assert from 'node:assert';
 import { describe, it } from 'node:test';
 
-import { createTree } from './tree2.ts';
+import { createTree } from './tree.ts';
 import { parse } from '../parse.ts';
-import { match, type _URL } from './match4.ts';
+import { match, type _URL } from './match.ts';
 
 // benchmark
 // repeated params

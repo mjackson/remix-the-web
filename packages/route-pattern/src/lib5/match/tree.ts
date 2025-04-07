@@ -15,100 +15,97 @@ export class RouteConflictError extends Error {
   // todo nice error message
 }
 
-type Route = {
-  pattern: AST.Pattern;
-  variant: Variant;
-};
 export type Node = {
-  type: 'protocol' | 'hostname' | 'pathname';
-
-  // children
-  staticChildren: Map<string, Node>;
-  dynamicChildren: Map<string, Node>;
-  dynamicChildrenOrder: Array<[string, RegExp]>;
-  glob?: Node;
-
-  // transition to next URL part: protocol -> hostname -> pathname
-  end?: Node;
+  protocol: Children;
+  hostname: Children;
+  pathname: Children;
 
   route?: Route;
 };
 
-function createNode(type: Node['type']): Node {
+type Children = {
+  static: Map<string, Node>;
+  dynamic: Map<string, Node>;
+  dynamicOrder: Array<[string, RegExp]>;
+};
+
+type Route = {
+  pattern: AST.Pattern;
+  variant: Variant;
+};
+
+function createNode(): Node {
   return {
-    type,
-    staticChildren: new Map(),
-    dynamicChildren: new Map(),
-    dynamicChildrenOrder: [],
+    protocol: createChildren(),
+    hostname: createChildren(),
+    pathname: createChildren(),
   };
 }
 
-// todo: reverse hostname (either here or in variant)
-export function createMatcher(pattern: AST.Pattern) {
-  const root = createNode('protocol');
-  const nodesWithDynamicChildren: Node[] = [];
+function createChildren(): Children {
+  return {
+    static: new Map(),
+    dynamic: new Map(),
+    dynamicOrder: [],
+  };
+}
 
-  for (const variant of variants(pattern)) {
-    let node = root;
+export function createTree(patterns: Array<AST.Pattern>): Node {
+  const root = createNode();
+  const withDynamic: Set<Children> = new Set();
 
-    // protocol
-    if (variant.protocol === '') {
-      let next = node.end;
-      if (!next) {
-        next = createNode('hostname');
-        node.end = next;
+  for (const pattern of patterns) {
+    for (const variant of variants(pattern)) {
+      let node = root;
+
+      // todo handle omitted protocol
+      let child = node.protocol.static.get(variant.protocol);
+      if (!child) {
+        child = createNode();
+        node.protocol.static.set(variant.protocol, child);
       }
-      node = next;
-    } else {
-      let next = node.staticChildren.get(variant.protocol);
-      if (!next) {
-        next = createNode('hostname');
-        node.staticChildren.set(variant.protocol, next);
-      }
-      node = next;
-    }
+      node = child;
 
-    // hostname
-    for (const segment of variant.hostname) {
-      const isDynamic = segment.includes(':');
-      const children = isDynamic ? node.dynamicChildren : node.staticChildren;
-      let next = children.get(segment);
-      if (!next) {
-        next = createNode('hostname');
-        children.set(segment, next);
-        if (isDynamic) nodesWithDynamicChildren.push(node);
+      // hostname
+      for (const segment of variant.hostname) {
+        const isDynamic = segment.includes(':');
+        const children = isDynamic ? node.hostname.dynamic : node.hostname.static;
+        let child = children.get(segment);
+        if (!child) {
+          child = createNode();
+          children.set(segment, child);
+          withDynamic.add(node.hostname);
+        }
+        node = child;
       }
-      node = next;
-    }
-    node.end = createNode('pathname');
-    node = node.end;
 
-    // pathname
-    for (const segment of variant.pathname) {
-      const isDynamic = segment.includes(':');
-      const children = isDynamic ? node.dynamicChildren : node.staticChildren;
-      let next = children.get(segment);
-      if (!next) {
-        next = createNode('pathname');
-        children.set(segment, next);
-        if (isDynamic) nodesWithDynamicChildren.push(node);
+      // pathname
+      for (const segment of variant.pathname) {
+        const isDynamic = segment.includes(':');
+        const children = isDynamic ? node.pathname.dynamic : node.pathname.static;
+        let child = children.get(segment);
+        if (!child) {
+          child = createNode();
+          children.set(segment, child);
+          withDynamic.add(node.pathname);
+        }
+        node = child;
       }
-      node = next;
-    }
 
-    if (node.route) {
-      throw new RouteConflictError(node.route, { pattern, variant });
+      if (node.route) {
+        throw new RouteConflictError(node.route, { pattern, variant });
+      }
+      node.route = { pattern, variant };
     }
-    node.route = { pattern, variant };
   }
 
-  for (const node of nodesWithDynamicChildren) {
-    const dynamicChildrenOrder: Array<[string, RegExp]> = [];
-    for (const segment of node.dynamicChildren.keys()) {
-      dynamicChildrenOrder.push([segment, toRegExp(segment)]);
+  for (const children of withDynamic) {
+    const dynamicOrder: Array<[string, RegExp]> = [];
+    for (const key of children.dynamic.keys()) {
+      dynamicOrder.push([key, toRegExp(key)]);
     }
-    dynamicChildrenOrder.sort((a, b) => sortByStaticLengths(a[0], b[0]));
-    node.dynamicChildrenOrder = dynamicChildrenOrder;
+    dynamicOrder.sort((a, b) => sortByStaticLengths(a[0], b[0]));
+    children.dynamicOrder = dynamicOrder;
   }
 
   return root;
