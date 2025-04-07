@@ -5,8 +5,6 @@ import { AwsClient } from 'aws4fetch';
 import { DOMParser } from '@xmldom/xmldom';
 import type { Element } from '@xmldom/xmldom';
 
-type MetadataJson = Omit<FileMetadata, 'size'>;
-
 /**
  * Type definition for AwsClient constructor parameters
  */
@@ -100,20 +98,11 @@ export class S3FileStorage implements FileStorage {
    * Puts a file in storage at the given key.
    */
   async set(key: string, file: File): Promise<void> {
-    const metadata: MetadataJson = {
-      key,
-      lastModified: file.lastModified,
-      name: file.name,
-      type: file.type,
-    };
-    
-    const metadataStr = JSON.stringify(metadata);
     const metadataHeaders = {
       'Content-Type': file.type,
       'x-amz-meta-name': file.name,
       'x-amz-meta-type': file.type,
       'x-amz-meta-lastModified': file.lastModified.toString(),
-      'x-amz-meta-metadata': metadataStr,
     };
 
     let size = null
