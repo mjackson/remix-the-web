@@ -1,0 +1,65 @@
+{
+  "name": "@mjackson/s3-file-storage",
+  "version": "0.0.1",
+  "description": "S3 implementation of Key/value storage for JavaScript File objects",
+  "author": "Michael Jackson <mjijackson@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mjackson/remix-the-web.git",
+    "directory": "packages/s3-file-storage"
+  },
+  "homepage": "https://github.com/mjackson/remix-the-web/tree/main/packages/s3-file-storage#readme",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "type": "module",
+  "types": "./dist/s3-file-storage.d.ts",
+  "main": "./dist/s3-file-storage.js",
+  "exports": {
+    ".": {
+      "module-sync": {
+        "types": "./dist/s3-file-storage.d.ts",
+        "default": "./dist/s3-file-storage.js"
+      },
+      "import": {
+        "types": "./dist/s3-file-storage.d.ts",
+        "default": "./dist/s3-file-storage.js"
+      },
+      "require": {
+        "types": "./dist/s3-file-storage.d.cts",
+        "default": "./dist/s3-file-storage.cjs"
+      },
+      "default": {
+        "types": "./dist/s3-file-storage.d.ts",
+        "default": "./dist/s3-file-storage.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@mjackson/file-storage": "workspace:^",
+    "@mjackson/lazy-file": "workspace:^",
+    "aws4fetch": "^1.0.17",
+    "@xmldom/xmldom": "^0.9.8"
+  },
+  "devDependencies": {
+    "@mjackson/form-data-parser": "workspace:^",
+    "@types/node": "^20.14.10",
+    "tsup": "^8.3.5"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test ./src/**/*.test.ts",
+    "prepare": "pnpm run build"
+  },
+  "keywords": [
+    "file",
+    "storage",
+    "stream",
+    "s3",
+    "aws"
+  ]
+}
