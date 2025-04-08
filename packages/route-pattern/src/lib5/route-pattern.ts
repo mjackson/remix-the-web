@@ -16,11 +16,12 @@ export class ParseError extends Error {
 }
 
 export class RoutePattern {
-  ast: AST.Pattern;
+  _ast: AST.Pattern;
   #source?: string;
 
-  constructor(ast: AST.Pattern) {
-    this.ast = ast;
+  /** todo jsdoc: call `.parse` instead */
+  private constructor(ast: AST.Pattern) {
+    this._ast = ast;
   }
 
   static parse(source: string): RoutePattern {
@@ -37,19 +38,19 @@ export class RoutePattern {
   get source(): string {
     if (this.#source === undefined) {
       let source = '';
-      if (this.ast.hostname.length > 0) {
-        source += sourcePart(this.ast.protocol);
+      if (this._ast.hostname.length > 0) {
+        source += sourcePart(this._ast.protocol);
         source += '://';
-        source += sourcePart(this.ast.hostname);
+        source += sourcePart(this._ast.hostname);
 
-        if (this.ast.pathname.length > 0) {
+        if (this._ast.pathname.length > 0) {
           source += '/';
         }
       }
-      source += sourcePart(this.ast.pathname);
-      if (this.ast.search) {
+      source += sourcePart(this._ast.pathname);
+      if (this._ast.search) {
         source += '?';
-        source += this.ast.search;
+        source += this._ast.search;
       }
       this.#source = source;
     }
@@ -57,32 +58,21 @@ export class RoutePattern {
   }
 
   join(other: RoutePattern) {
-    const pathname = [...this.ast.pathname];
-    if (other.ast.pathname.length > 0) {
+    const pathname = [...this._ast.pathname];
+    if (other._ast.pathname.length > 0) {
       if (pathname.length > 0) {
         pathname.push({ type: 'text', text: '/' });
       }
-      pathname.push(...other.ast.pathname);
+      pathname.push(...other._ast.pathname);
     }
 
     return new RoutePattern({
-      protocol: other.ast.protocol.length > 0 ? other.ast.protocol : this.ast.protocol,
-      hostname: other.ast.hostname.length > 0 ? other.ast.hostname : this.ast.hostname,
+      protocol: other._ast.protocol.length > 0 ? other._ast.protocol : this._ast.protocol,
+      hostname: other._ast.hostname.length > 0 ? other._ast.hostname : this._ast.hostname,
       pathname,
-      search: this.ast.search + other.ast.search, // todo
+      search: this._ast.search + other._ast.search, // todo
     });
   }
-}
-
-function sourcePart(part: AST.Part): string {
-  let source = '';
-  AST.traverse(part, {
-    param: (node) => (source += ':' + node.name),
-    text: (node) => (source += node.text),
-    optionalOpen: () => (source += '('),
-    optionalClose: () => (source += ')'),
-  });
-  return source;
 }
 
 const identifierRE = /^[a-zA-Z_$][\w$]*/;
@@ -139,4 +129,15 @@ function parsePart(source: string, span: Span): AST.Part {
   }
 
   return result;
+}
+
+function sourcePart(part: AST.Part): string {
+  let source = '';
+  AST.traverse(part, {
+    param: (node) => (source += ':' + node.name),
+    text: (node) => (source += node.text),
+    optionalOpen: () => (source += '('),
+    optionalClose: () => (source += ')'),
+  });
+  return source;
 }

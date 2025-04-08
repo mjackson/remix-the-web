@@ -22,7 +22,7 @@ function discover(pattern: RoutePattern) {
   const paramNames: Array<string> = [];
 
   let numOptionals = 0;
-  for (const part of [pattern.ast.protocol, pattern.ast.hostname, pattern.ast.pathname]) {
+  for (const part of [pattern._ast.protocol, pattern._ast.hostname, pattern._ast.pathname]) {
     AST.traverse(part, {
       param: (node) => paramNames.push(node.name),
       optionalOpen: () => (numOptionals += 1),
@@ -66,10 +66,10 @@ function createVariant({
     return source;
   }
 
-  const protocol = getPartVariant(pattern.ast.protocol);
-  const hostname = getPartVariant(pattern.ast.hostname).split('.').reverse();
-  const pathname = getPartVariant(pattern.ast.pathname).split('/');
+  const protocol = getPartVariant(pattern._ast.protocol);
+  const hostname = getPartVariant(pattern._ast.hostname).split('.').reverse();
+  const pathname = getPartVariant(pattern._ast.pathname).split('/');
   const paramSlots = paramNames.map((name, i) => [name, paramIndices.has(i)] as [string, boolean]);
 
-  return { protocol, hostname, pathname, search: pattern.ast.search, paramSlots };
+  return { protocol, hostname, pathname, search: pattern._ast.search, paramSlots };
 }

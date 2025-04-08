@@ -1,9 +1,18 @@
-import type { RoutePattern } from '../route-pattern.ts';
+import { RoutePattern } from '../route-pattern.ts';
 import { split } from '../split.ts';
-import type { Node } from './tree.ts';
-import type { Variant } from './variants';
+import { type Node, createTree } from './tree.ts';
+import type { Variant } from './variants.ts';
 
-export type _URL = Array<{
+export const matcher = (patterns: Array<RoutePattern | string>) => {
+  const tree = createTree(
+    patterns.map((pattern) =>
+      typeof pattern === 'string' ? RoutePattern.parse(pattern) : pattern,
+    ),
+  );
+  return (url: string) => match(tree, toURL(url));
+};
+
+type URL = Array<{
   type: 'protocol' | 'hostname' | 'pathname';
   segment: string;
 }>;
@@ -38,7 +47,7 @@ function backtrack(state: State) {
   }
 }
 
-function toURL(url: string): _URL {
+function toURL(url: string): URL {
   const parts = split(url);
   const protocol = url.slice(...parts.protocol!);
   const hostname = url
@@ -54,8 +63,7 @@ function toURL(url: string): _URL {
   ];
 }
 
-export function* match(tree: Node, _url: string): Generator<MatchResult, undefined> {
-  const url = toURL(_url);
+function* match(tree: Node, url: URL): Generator<MatchResult, undefined> {
   const state: State = [{ urlIndex: 0, node: tree }];
 
   outer: while (state.length > 0) {

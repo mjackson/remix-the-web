@@ -2,12 +2,13 @@
 
 ## TODO
 
+- [ ] organize tests
 - [ ] API
 
   - [x] RoutePattern.parse
   - [x] RoutePattern.source
   - [x] RoutePattern.join
-  - [~] createMatcher.{match,test}
+  - [x] createMatcher.{match,test}
   - [ ] globs
   - [ ] search params
   - [ ] error on params in protocol
