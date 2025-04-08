@@ -1,5 +1,5 @@
-import type * as AST from '../ast.ts';
-import { split } from '../parse.ts';
+import type { RoutePattern } from '../route-pattern.ts';
+import { split } from '../split.ts';
 import type { Node } from './tree.ts';
 import type { Variant } from './variants';
 
@@ -25,7 +25,7 @@ type StateItem = {
 type State = Array<StateItem>;
 
 type MatchResult = {
-  pattern: AST.Pattern;
+  pattern: RoutePattern;
   variant: Variant;
   params: Params;
 };
@@ -54,7 +54,7 @@ function toURL(url: string): _URL {
   ];
 }
 
-export function* match(tree: Node, _url: string): Generator<MatchResult> {
+export function* match(tree: Node, _url: string): Generator<MatchResult, undefined> {
   const url = toURL(_url);
   const state: State = [{ urlIndex: 0, node: tree }];
 
@@ -99,8 +99,8 @@ export function* match(tree: Node, _url: string): Generator<MatchResult> {
         node: child,
         paramValues: match.slice(1),
         urlIndex: current.urlIndex + 1,
-        bookmark: i,
       });
+      current.bookmark = i;
       continue outer;
     }
 

@@ -1,4 +1,4 @@
-import * as AST from '../ast.ts';
+import type { RoutePattern } from '../route-pattern.ts';
 import { sortByStaticLengths } from './sort-by-static-lengths.ts';
 import { variants, type Variant } from './variants.ts';
 
@@ -30,7 +30,7 @@ type Children = {
 };
 
 type Route = {
-  pattern: AST.Pattern;
+  pattern: RoutePattern;
   variant: Variant;
 };
 
@@ -50,7 +50,7 @@ function createChildren(): Children {
   };
 }
 
-export function createTree(patterns: Array<AST.Pattern>): Node {
+export function createTree(patterns: Array<RoutePattern>): Node {
   const root = createNode();
   const withDynamic: Set<Children> = new Set();
 

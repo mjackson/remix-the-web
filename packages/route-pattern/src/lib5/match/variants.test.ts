@@ -1,12 +1,12 @@
 import * as assert from 'node:assert';
 import { describe, it } from 'node:test';
 
-import { parse } from '../parse.ts';
+import { RoutePattern } from '../route-pattern.ts';
 import { variants } from './variants.ts';
 
 describe('variants', () => {
   it('works', () => {
-    const pattern = parse('http(s)://(:sub.)remix.run/products/:id(/v:version)');
+    const pattern = RoutePattern.parse('http(s)://(:sub.)remix.run/products/:id(/v:version)');
     const actual = Array.from(variants(pattern));
     assert.deepStrictEqual(actual, [
       {

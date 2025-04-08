@@ -1,49 +1,16 @@
+## refactor
+
 ## TODO
-
-```ts
-const pattern1 = 'http://remix.run/blah?a&b';
-const pattern2 = 'http://remix.run/blah?b&c';
-
-// http -> run -> remix -> blah (match!!!)
-// constraint a&b -> routeA
-// constraint b&c -> routeB
-
-const url = 'http://remix.run/blah?a&b&c';
-
-const matcher = createMatcher([pattern1, pattern2]);
-matcher.match();
-matcher.test();
-```
-
-```ts
-const pattern1 = 'http://remix.com/peter';
-const pattern2 = 'https://remix.run/miguel?b&c';
-const pattern3 = '://unpkg.com/docs';
-const pattern4 = 'blog/:slug';
-
-// pattern2 overrides pattern1
-pattern1.join(pattern2); // -> https://remix.run/peter/miguel?b&c // union the search param
-
-pattern1.join(pattern3); // -> https://remix.run/miguel?b&c
-pattern1.join(pattern4); // -> https://remix.run/miguel?b&c
-
-mount('http://remix.run/blog', () => {
-  route('https://remix.com/:id');
-});
-
-mount('/blog', () => {
-  route('/:id');
-});
-```
 
 - [ ] API
 
+  - [x] RoutePattern.parse
+  - [x] RoutePattern.source
+  - [x] RoutePattern.join
+  - [~] createMatcher.{match,test}
   - [ ] globs
   - [ ] search params
-  - [x] RoutePattern.parse
-  - [ ] RoutePattern.source (cached)
-  - [ ] RoutePattern.join
-  - [x] createMatcher.{match,test}
+  - [ ] error on params in protocol
 
 - [ ] benchmarks
 
@@ -64,6 +31,12 @@ mount('/blog', () => {
   - [ ] comparison: existing RR
   - [ ] comparison: path-to-regexp
   - [ ] comparison: UrlPattern
+
+- [ ] blog post
+
+  - For normal cases, scales with size of input, not number of routes
+  - Dynamic children sorted by partial static lengths
+  - Enhanced depth-first search with minimal memory overhead and no processing of nodes outside current branch!
 
 ```ts
 const pattern = RoutePattern.parse('...');

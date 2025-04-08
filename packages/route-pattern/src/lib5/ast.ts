@@ -1,8 +1,6 @@
-export type Span = [number, number];
-
-export type Optional = { span: Span; type: 'optional'; items: Array<Param | Text> };
-export type Param = { span: Span; type: 'param'; name: string };
-export type Text = { span: Span; type: 'text'; text: string };
+export type Optional = { type: 'optional'; items: Array<Param | Text> };
+export type Param = { type: 'param'; name: string };
+export type Text = { type: 'text'; text: string };
 
 export type Part = Array<Optional | Param | Text>;
 
@@ -16,7 +14,8 @@ export type Pattern = {
 export function traverse(
   part: Part,
   visit: {
-    optional?: (node: Optional) => void;
+    optionalOpen?: (node: Optional) => void;
+    optionalClose?: (node: Optional) => void;
     param?: (node: Param, optional: Optional | null) => void;
     text?: (node: Text, optional: Optional | null) => void;
   },
@@ -31,7 +30,7 @@ export function traverse(
       continue;
     }
     if (node.type === 'optional') {
-      visit.optional?.(node);
+      visit.optionalOpen?.(node);
       for (const item of node.items) {
         if (item.type === 'text') {
           visit.text?.(item, node);
@@ -42,6 +41,7 @@ export function traverse(
           continue;
         }
       }
+      visit.optionalClose?.(node);
     }
   }
 }
