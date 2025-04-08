@@ -49,7 +49,6 @@
     "@mjackson/fetch-proxy": "workspace:^",
     "@mjackson/form-data-parser": "workspace:^",
     "@types/node": "^20.14.10",
-    "mockdate": "^3.0.5",
     "tsup": "^8.3.5"
   },
   "scripts": {

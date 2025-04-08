@@ -353,12 +353,5 @@ export function resetGlobalFetch(): void {
  */
 async function ensureDirectoryExists(filePath: string): Promise<void> {
   const directory = dirname(filePath);
-  try {
-    await mkdir(directory, { recursive: true });
-  } catch (error) {
-    // Ignore error if directory already exists
-    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
-      throw error;
-    }
-  }
+  await mkdir(directory, { recursive: true });
 }
