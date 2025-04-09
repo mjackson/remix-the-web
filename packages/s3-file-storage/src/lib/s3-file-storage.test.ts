@@ -31,39 +31,45 @@ describe('S3FileStorage', () => {
       const url = request.url;
       const method = request.method;
 
-      // Find and return matching mock response
-      for (const mock of mockResponses) {
-        if (
-          (typeof mock.url === 'string' && url === mock.url || 
-           mock.url instanceof RegExp && mock.url.test(url)) && 
-          mock.method === method
-        ) {
-          // Validate headers if specified
-          if (mock.headers) {
-            for (const [key, value] of Object.entries(mock.headers)) {
-              const headerValue = request.headers.get(key);
-              if (headerValue !== value) {
-                throw new Error(`Expected header ${key}=${value}, got ${headerValue}`);
-              }
-            }
+      // No responses available
+      if (mockResponses.length === 0) {
+        console.warn(`No mock responses left for ${method} ${url}`);
+        throw new Error(`No mock responses left for ${method} ${url}`);
+      }
+
+      // Get the next mock in the queue
+      const mock = mockResponses.shift()!;
+      
+      // Check if the mock matches the request
+      const urlMatches = typeof mock.url === 'string' 
+        ? url === mock.url 
+        : mock.url.test(url);
+        
+      if (!urlMatches || mock.method !== method) {
+        console.warn(`Expected request ${mock.method} ${mock.url}, got ${method} ${url}`);
+        throw new Error(`Expected request ${mock.method} ${mock.url}, got ${method} ${url}`);
+      }
+      
+      // Validate headers if specified
+      if (mock.headers) {
+        for (const [key, value] of Object.entries(mock.headers)) {
+          const headerValue = request.headers.get(key);
+          if (headerValue !== value) {
+            throw new Error(`Expected header ${key}=${value}, got ${headerValue}`);
           }
-          
-          // Validate body if specified
-          if (mock.body !== undefined) {
-            const bodyText = await request.clone().text();
-            if (bodyText !== mock.body) {
-              throw new Error(`Expected body "${mock.body}", got "${bodyText}"`);
-            }
-          }
-          
-          // Handle the request and return the response
-          return mock.handle(request);
         }
       }
       
-      // If no mocks match, warn and throw an error
-      console.warn(`No mock found for ${method} ${url}`);
-      throw new Error(`No mock found for ${method} ${url}`);
+      // Validate body if specified
+      if (mock.body !== undefined) {
+        const bodyText = await request.clone().text();
+        if (bodyText !== mock.body) {
+          throw new Error(`Expected body "${mock.body}", got "${bodyText}"`);
+        }
+      }
+      
+      // Handle the request and return the response
+      return mock.handle(request);
     };
 
     // Create test storage client
