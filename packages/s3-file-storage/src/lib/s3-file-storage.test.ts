@@ -13,65 +13,10 @@ const TEST_ENDPOINT = 'http://localhost:9000';
 describe('S3FileStorage', () => {
   let storage: S3FileStorage;
   let originalFetch: typeof fetch;
-  let mockResponses: Array<{
-    url: string | RegExp;
-    method: string;
-    handle: (request: Request) => Response | Promise<Response>;
-    headers?: Record<string, string>;
-    body?: string;
-  }>;
 
   beforeEach(() => {
-    mockResponses = [];
     originalFetch = globalThis.fetch;
-
-    // Mock fetch to intercept and respond to specific requests
-    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-      const request = input instanceof Request ? input : new Request(input, init);
-      const url = request.url;
-      const method = request.method;
-
-      // No responses available
-      if (mockResponses.length === 0) {
-        console.warn(`No mock responses left for ${method} ${url}`);
-        throw new Error(`No mock responses left for ${method} ${url}`);
-      }
-
-      // Get the next mock in the queue
-      const mock = mockResponses.shift()!;
-      
-      // Check if the mock matches the request
-      const urlMatches = typeof mock.url === 'string' 
-        ? url === mock.url 
-        : mock.url.test(url);
-        
-      if (!urlMatches || mock.method !== method) {
-        console.warn(`Expected request ${mock.method} ${mock.url}, got ${method} ${url}`);
-        throw new Error(`Expected request ${mock.method} ${mock.url}, got ${method} ${url}`);
-      }
-      
-      // Validate headers if specified
-      if (mock.headers) {
-        for (const [key, value] of Object.entries(mock.headers)) {
-          const headerValue = request.headers.get(key);
-          if (headerValue !== value) {
-            throw new Error(`Expected header ${key}=${value}, got ${headerValue}`);
-          }
-        }
-      }
-      
-      // Validate body if specified
-      if (mock.body !== undefined) {
-        const bodyText = await request.clone().text();
-        if (bodyText !== mock.body) {
-          throw new Error(`Expected body "${mock.body}", got "${bodyText}"`);
-        }
-      }
-      
-      // Handle the request and return the response
-      return mock.handle(request);
-    };
-
+    
     // Create test storage client
     storage = new S3FileStorage({
       accessKeyId: TEST_ACCESS_KEY,
@@ -86,7 +31,6 @@ describe('S3FileStorage', () => {
   afterEach(() => {
     // Restore the original fetch
     globalThis.fetch = originalFetch;
-    mockResponses = [];
   });
   
   // Helper function to create XML responses for S3
@@ -102,34 +46,37 @@ describe('S3FileStorage', () => {
 
   describe('has()', () => {
     it('returns true when file exists', async () => {
-      mockResponses.push({
-        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`,
-        method: 'HEAD',
-        handle: () => new Response(null, { status: 200 }),
-      });
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = new Request(input, init);
+        assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`);
+        assert.equal(request.method, 'HEAD');
+        return new Response(null, { status: 200 });
+      };
 
       const result = await storage.has('testfile');
       assert.equal(result, true);
     });
 
     it('returns false when file does not exist', async () => {
-      mockResponses.push({
-        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/nonexistent`,
-        method: 'HEAD',
-        handle: () => new Response(null, { status: 404 })
-      });
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = new Request(input, init);
+        assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/nonexistent`);
+        assert.equal(request.method, 'HEAD');
+        return new Response(null, { status: 404 });
+      };
 
       const result = await storage.has('nonexistent');
       assert.equal(result, false);
     });
 
     it('throws when response is not ok or 404', async () => {
-      mockResponses.push({
-        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/error`,
-        method: 'HEAD',
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = new Request(input, init);
+        assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/error`);
+        assert.equal(request.method, 'HEAD');
         // avoid returning a 500, because that triggers a retry
-        handle: () => new Response(null, { status: 418, statusText: "I'm a teapot" })
-      });
+        return new Response(null, { status: 418, statusText: "I'm a teapot" });
+      };
 
       await assert.rejects(
         async () => await storage.has('error'),
@@ -140,27 +87,32 @@ describe('S3FileStorage', () => {
 
   describe('set()', () => {
     it('sets a file with standard PUT when size is known', async () => {
-      mockResponses.push({
-        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`,
-        method: 'PUT',
-        headers: {
-            'content-type': 'text/plain'
-        },
-        body: 'Hello, world!',
-        handle: () => new Response(null, { status: 200 }),
-      });
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = new Request(input, init);
+        assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`);
+        assert.equal(request.method, 'PUT');
+        assert.equal(request.headers.get('content-type'), 'text/plain');
+        
+        // Verify the body content
+        const bodyText = await request.text();
+        assert.equal(bodyText, 'Hello, world!');
+        
+        return new Response(null, { status: 200 });
+      };
 
       const testFile = new File(['Hello, world!'], 'test.txt', { type: 'text/plain' });
       await storage.set('testfile', testFile);
     });
 
     it('throws an error when PUT response is not ok', async () => {
-      mockResponses.push({
-        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/errorfile`,
-        method: 'PUT',
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = new Request(input, init);
+        assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/errorfile`);
+        assert.equal(request.method, 'PUT');
+        
         // avoid returning a 500, because that triggers a retry
-        handle: () => new Response(null, { status: 418, statusText: "I'm a teapot" })
-      });
+        return new Response(null, { status: 418, statusText: "I'm a teapot" });
+      };
 
       const testFile = new File(['Hello, world!'], 'test.txt', { type: 'text/plain' });
       
@@ -177,16 +129,23 @@ describe('S3FileStorage', () => {
         get: () => { throw new Error('Size not available'); }
       });
       
-      // Mock multipart upload initiation
-      mockResponses.push({
-        url: new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}/multipartfile\\?uploads=`),
-        method: 'POST',
-        headers: {
-            'content-type': 'text/plain',
-            'x-amz-meta-name': 'test.txt',
-            'x-amz-meta-type': 'text/plain',
-        },
-        handle: () => {
+      let callIndex = -1;
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        callIndex++;
+        const request = new Request(input, init);
+        const url = request.url;
+        const method = request.method;
+        
+        if (callIndex === 0) {
+          // First request: initiate multipart upload
+          assert.equal(method, 'POST');
+          assert.match(url, new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}/multipartfile\\?uploads=`));
+          
+          // Verify headers
+          assert.equal(request.headers.get('content-type'), 'text/plain');
+          assert.equal(request.headers.get('x-amz-meta-name'), 'test.txt');
+          assert.equal(request.headers.get('x-amz-meta-type'), 'text/plain');
+          
           return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
             <InitiateMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
               <Bucket>${TEST_BUCKET}</Bucket>
@@ -194,28 +153,31 @@ describe('S3FileStorage', () => {
               <UploadId>test-upload-id</UploadId>
             </InitiateMultipartUploadResult>
           `);
-        }
-      });
-      
-      // Mock part upload
-      mockResponses.push({
-        url: new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}/multipartfile\\?partNumber=1&uploadId=test-upload-id`),
-        method: 'PUT',
-        body: 'Hello, world!',
-        handle: () => new Response(null, { 
+        } 
+        
+        if (callIndex === 1) {
+          // Second request: upload part
+          assert.equal(method, 'PUT');
+          assert.match(url, new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}/multipartfile\\?partNumber=1&uploadId=test-upload-id`));
+          
+          // Verify body
+          const bodyText = await request.text();
+          assert.equal(bodyText, 'Hello, world!');
+          
+          return new Response(null, { 
             status: 200, 
             headers: {
-                'ETag': '"test-etag"'
+              'ETag': '"test-etag"'
             }
-        })
-      });
-      
-      // Mock completion
-      mockResponses.push({
-        url: new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}/multipartfile\\?uploadId=test-upload-id$`),
-        method: 'POST',
-        handle: async (request) => {
-          // Verify the completion XML body includes the proper ETag
+          });
+        }
+        
+        if (callIndex === 2) {
+          // Third request: complete multipart upload
+          assert.equal(method, 'POST');
+          assert.match(url, new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}/multipartfile\\?uploadId=test-upload-id$`));
+          
+          // Verify the completion XML body
           const bodyXml = await request.text();
           assert.ok(bodyXml.includes('<CompleteMultipartUpload>'));
           assert.ok(bodyXml.includes('<Part>'));
@@ -231,19 +193,25 @@ describe('S3FileStorage', () => {
             </CompleteMultipartUploadResult>
           `);
         }
-      });
+        
+        throw new Error(`Unexpected request #${callIndex + 1}: ${method} ${url}`);
+      };
       
       await storage.set('multipartfile', testFile);
+      
+      // Verify all expected requests were made
+      assert.equal(callIndex, 2, `Expected 3 requests, but got ${callIndex + 1}`);
     });
   });
 
   describe('get()', () => {
     it('returns null when file does not exist', async () => {
-      mockResponses.push({
-        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/nonexistent`,
-        method: 'HEAD',
-        handle: () => new Response(null, { status: 404 })
-      });
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = new Request(input, init);
+        assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/nonexistent`);
+        assert.equal(request.method, 'HEAD');
+        return new Response(null, { status: 404 });
+      };
 
       const result = await storage.get('nonexistent');
       assert.equal(result, null);
@@ -252,35 +220,45 @@ describe('S3FileStorage', () => {
     it('creates a File with correct metadata from headers', async () => {
       const lastModified = new Date('2023-01-01T00:00:00Z').getTime();
       
-      // Mock the HEAD request to get metadata
-      mockResponses.push({
-        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`,
-        method: 'HEAD',
-        handle: () => new Response(null, { 
-          status: 200,
-          headers: {
-            'content-length': '13',
-            'content-type': 'text/plain',
-            'last-modified': new Date(lastModified).toUTCString(),
-            'x-amz-meta-name': 'test.txt',
-            'x-amz-meta-type': 'text/plain',
-            'x-amz-meta-lastModified': lastModified.toString()
-          }
-        })
-      });
-
-      // Mock the GET request for the content
-      mockResponses.push({
-        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`,
-        method: 'GET',
-        handle: () => new Response('Hello, world!', { 
-          status: 200,
-          headers: {
-            'content-type': 'text/plain',
-            'content-length': '13'
-          }
-        })
-      });
+      let callIndex = -1;
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        callIndex++;
+        const request = new Request(input, init);
+        
+        if (callIndex === 0) {
+          // First request: HEAD request to get metadata
+          assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`);
+          assert.equal(request.method, 'HEAD');
+          
+          return new Response(null, { 
+            status: 200,
+            headers: {
+              'content-length': '13',
+              'content-type': 'text/plain',
+              'last-modified': new Date(lastModified).toUTCString(),
+              'x-amz-meta-name': 'test.txt',
+              'x-amz-meta-type': 'text/plain',
+              'x-amz-meta-lastModified': lastModified.toString()
+            }
+          });
+        }
+        
+        if (callIndex === 1) {
+          // Second request: GET request for the content
+          assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`);
+          assert.equal(request.method, 'GET');
+          
+          return new Response('Hello, world!', { 
+            status: 200,
+            headers: {
+              'content-type': 'text/plain',
+              'content-length': '13'
+            }
+          });
+        }
+        
+        throw new Error(`Unexpected request #${callIndex + 1}: ${request.method} ${request.url}`);
+      };
 
       const file = await storage.get('testfile');
       assert.ok(file instanceof File);
@@ -292,35 +270,49 @@ describe('S3FileStorage', () => {
       // Check that the content is correctly loaded
       const content = await file!.text();
       assert.equal(content, 'Hello, world!');
+      
+      // Verify both expected requests were made
+      assert.equal(callIndex, 1, `Expected 2 requests, but got ${callIndex + 1}`);
     });
 
     it('handles range requests correctly', async () => {
-      // Mock the HEAD request to get metadata
-      mockResponses.push({
-        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`,
-        method: 'HEAD',
-        handle: () => new Response(null, { 
-          status: 200,
-          headers: {
-            'content-length': '13',
-            'content-type': 'text/plain'
-          }
-        })
-      });
-
-      // Mock the GET request with range header
-      mockResponses.push({
-        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`,
-        method: 'GET',
-        handle: () => new Response('llo,', { 
-          status: 206,
-          headers: {
-            'content-type': 'text/plain',
-            'content-length': '4',
-            'content-range': 'bytes 2-5/13'
-          }
-        })
-      });
+      let callIndex = -1;
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        callIndex++;
+        const request = new Request(input, init);
+        
+        if (callIndex === 0) {
+          // First request: HEAD request to get metadata
+          assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`);
+          assert.equal(request.method, 'HEAD');
+          
+          return new Response(null, { 
+            status: 200,
+            headers: {
+              'content-length': '13',
+              'content-type': 'text/plain'
+            }
+          });
+        }
+        
+        if (callIndex === 1) {
+          // Second request: GET request with range header
+          assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`);
+          assert.equal(request.method, 'GET');
+          assert.equal(request.headers.get('range'), 'bytes=2-5');
+          
+          return new Response('llo,', { 
+            status: 206,
+            headers: {
+              'content-type': 'text/plain',
+              'content-length': '4',
+              'content-range': 'bytes 2-5/13'
+            }
+          });
+        }
+        
+        throw new Error(`Unexpected request #${callIndex + 1}: ${request.method} ${request.url}`);
+      };
 
       const file = await storage.get('testfile');
       assert.ok(file);
@@ -328,16 +320,20 @@ describe('S3FileStorage', () => {
       // Use the slice method to get a range of bytes
       const blob = file!.slice(2, 6);
       assert.equal(await blob.text(), 'llo,');
+      
+      // Verify both expected requests were made
+      assert.equal(callIndex, 1, `Expected 2 requests, but got ${callIndex + 1}`);
     });
   });
 
   describe('remove()', () => {
     it('deletes a file correctly', async () => {
-      mockResponses.push({
-        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`,
-        method: 'DELETE',
-        handle: () => new Response(null, { status: 204 })
-      });
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = new Request(input, init);
+        assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`);
+        assert.equal(request.method, 'DELETE');
+        return new Response(null, { status: 204 });
+      };
 
       await storage.remove('testfile');
       // If no error, the test passes
@@ -346,10 +342,12 @@ describe('S3FileStorage', () => {
 
   describe('list()', () => {
     it('lists files without metadata', async () => {
-      mockResponses.push({
-        url: new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}\\?list-type=2`),
-        method: 'GET',
-        handle: () => xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = new Request(input, init);
+        assert.equal(request.method, 'GET');
+        assert.match(request.url, new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}\\?list-type=2`));
+        
+        return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
           <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
             <Name>${TEST_BUCKET}</Name>
             <Prefix></Prefix>
@@ -371,8 +369,8 @@ describe('S3FileStorage', () => {
               <StorageClass>STANDARD</StorageClass>
             </Contents>
           </ListBucketResult>
-        `)
-      });
+        `);
+      };
 
       const result = await storage.list();
       assert.equal(result.cursor, undefined);
@@ -381,55 +379,68 @@ describe('S3FileStorage', () => {
     });
 
     it('handles pagination correctly', async () => {
-      mockResponses.push({
-        url: new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}\\?list-type=2.*max-keys=2`),
-        method: 'GET',
-        handle: () => xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
-          <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-            <Name>${TEST_BUCKET}</Name>
-            <Prefix></Prefix>
-            <KeyCount>2</KeyCount>
-            <MaxKeys>2</MaxKeys>
-            <IsTruncated>true</IsTruncated>
-            <Contents>
-              <Key>file1</Key>
-              <LastModified>2023-01-01T00:00:00.000Z</LastModified>
-              <ETag>"etag1"</ETag>
-              <Size>100</Size>
-              <StorageClass>STANDARD</StorageClass>
-            </Contents>
-            <Contents>
-              <Key>file2</Key>
-              <LastModified>2023-01-02T00:00:00.000Z</LastModified>
-              <ETag>"etag2"</ETag>
-              <Size>200</Size>
-              <StorageClass>STANDARD</StorageClass>
-            </Contents>
-            <NextContinuationToken>token123</NextContinuationToken>
-          </ListBucketResult>
-        `)
-      });
-
-      mockResponses.push({
-        url: new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}\\?list-type=2.*continuation-token=token123`),
-        method: 'GET',
-        handle: () => xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
-          <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-            <Name>${TEST_BUCKET}</Name>
-            <Prefix></Prefix>
-            <KeyCount>1</KeyCount>
-            <MaxKeys>2</MaxKeys>
-            <IsTruncated>false</IsTruncated>
-            <Contents>
-              <Key>file3</Key>
-              <LastModified>2023-01-03T00:00:00.000Z</LastModified>
-              <ETag>"etag3"</ETag>
-              <Size>300</Size>
-              <StorageClass>STANDARD</StorageClass>
-            </Contents>
-          </ListBucketResult>
-        `)
-      });
+      let callCount = 0;
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = new Request(input, init);
+        const url = request.url;
+        callCount++;
+        
+        if (callCount === 1) {
+          // First request (for first page)
+          assert.equal(request.method, 'GET');
+          assert.match(url, new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}\\?list-type=2.*max-keys=2`));
+          
+          return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
+            <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+              <Name>${TEST_BUCKET}</Name>
+              <Prefix></Prefix>
+              <KeyCount>2</KeyCount>
+              <MaxKeys>2</MaxKeys>
+              <IsTruncated>true</IsTruncated>
+              <Contents>
+                <Key>file1</Key>
+                <LastModified>2023-01-01T00:00:00.000Z</LastModified>
+                <ETag>"etag1"</ETag>
+                <Size>100</Size>
+                <StorageClass>STANDARD</StorageClass>
+              </Contents>
+              <Contents>
+                <Key>file2</Key>
+                <LastModified>2023-01-02T00:00:00.000Z</LastModified>
+                <ETag>"etag2"</ETag>
+                <Size>200</Size>
+                <StorageClass>STANDARD</StorageClass>
+              </Contents>
+              <NextContinuationToken>token123</NextContinuationToken>
+            </ListBucketResult>
+          `);
+        }
+        
+        if (callCount === 2) {
+          // Second request (for second page)
+          assert.equal(request.method, 'GET');
+          assert.match(url, new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}\\?list-type=2.*continuation-token=token123`));
+          
+          return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
+            <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+              <Name>${TEST_BUCKET}</Name>
+              <Prefix></Prefix>
+              <KeyCount>1</KeyCount>
+              <MaxKeys>2</MaxKeys>
+              <IsTruncated>false</IsTruncated>
+              <Contents>
+                <Key>file3</Key>
+                <LastModified>2023-01-03T00:00:00.000Z</LastModified>
+                <ETag>"etag3"</ETag>
+                <Size>300</Size>
+                <StorageClass>STANDARD</StorageClass>
+              </Contents>
+            </ListBucketResult>
+          `);
+        }
+        
+        throw new Error(`Unexpected request #${callCount}: ${request.method} ${url}`);
+      };
 
       // First page
       const result1 = await storage.list({ limit: 2 });
@@ -442,13 +453,18 @@ describe('S3FileStorage', () => {
       assert.equal(result2.cursor, undefined);
       assert.equal(result2.files.length, 1);
       assert.deepEqual(result2.files.map(f => f.key), ['file3']);
+      
+      // Verify we made exactly 2 requests
+      assert.equal(callCount, 2, "Expected exactly 2 calls to fetch");
     });
 
     it('filters by prefix correctly', async () => {
-      mockResponses.push({
-        url: new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}\\?list-type=2.*prefix=folder%2F`),
-        method: 'GET',
-        handle: () => xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = new Request(input, init);
+        assert.equal(request.method, 'GET');
+        assert.match(request.url, new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}\\?list-type=2.*prefix=folder%2F`));
+        
+        return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
           <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
             <Name>${TEST_BUCKET}</Name>
             <Prefix>folder/</Prefix>
@@ -470,8 +486,8 @@ describe('S3FileStorage', () => {
               <StorageClass>STANDARD</StorageClass>
             </Contents>
           </ListBucketResult>
-        `)
-      });
+        `);
+      };
 
       const result = await storage.list({ prefix: 'folder/' });
       assert.equal(result.cursor, undefined);
@@ -480,44 +496,54 @@ describe('S3FileStorage', () => {
     });
 
     it('includes metadata when requested', async () => {
-      // First mock the list request
-      mockResponses.push({
-        url: new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}\\?list-type=2`),
-        method: 'GET',
-        handle: () => xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
-          <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-            <Name>${TEST_BUCKET}</Name>
-            <Prefix></Prefix>
-            <KeyCount>1</KeyCount>
-            <MaxKeys>1000</MaxKeys>
-            <IsTruncated>false</IsTruncated>
-            <Contents>
-              <Key>file1</Key>
-              <LastModified>2023-01-01T00:00:00.000Z</LastModified>
-              <ETag>"etag1"</ETag>
-              <Size>100</Size>
-              <StorageClass>STANDARD</StorageClass>
-            </Contents>
-          </ListBucketResult>
-        `)
-      });
-
-      // Then mock the HEAD request that will be made for metadata
-      mockResponses.push({
-        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/file1`,
-        method: 'HEAD',
-        handle: () => new Response(null, { 
-          status: 200,
-          headers: {
-            'content-length': '13',
-            'content-type': 'text/plain',
-            'last-modified': new Date('2023-01-01T00:00:00Z').toUTCString(),
-            'x-amz-meta-name': 'test.txt',
-            'x-amz-meta-type': 'text/plain',
-            'x-amz-meta-lastModified': '1672531200000'
-          }
-        })
-      });
+      let callIndex = -1;
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        callIndex++;
+        const request = new Request(input, init);
+        
+        if (callIndex === 0) {
+          // First request: list request
+          assert.equal(request.method, 'GET');
+          assert.match(request.url, new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}\\?list-type=2`));
+          
+          return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
+            <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+              <Name>${TEST_BUCKET}</Name>
+              <Prefix></Prefix>
+              <KeyCount>1</KeyCount>
+              <MaxKeys>1000</MaxKeys>
+              <IsTruncated>false</IsTruncated>
+              <Contents>
+                <Key>file1</Key>
+                <LastModified>2023-01-01T00:00:00.000Z</LastModified>
+                <ETag>"etag1"</ETag>
+                <Size>100</Size>
+                <StorageClass>STANDARD</StorageClass>
+              </Contents>
+            </ListBucketResult>
+          `);
+        }
+        
+        if (callIndex === 1) {
+          // Second request: HEAD request for metadata
+          assert.equal(request.method, 'HEAD');
+          assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/file1`);
+          
+          return new Response(null, { 
+            status: 200,
+            headers: {
+              'content-length': '13',
+              'content-type': 'text/plain',
+              'last-modified': new Date('2023-01-01T00:00:00Z').toUTCString(),
+              'x-amz-meta-name': 'test.txt',
+              'x-amz-meta-type': 'text/plain',
+              'x-amz-meta-lastModified': '1672531200000'
+            }
+          });
+        }
+        
+        throw new Error(`Unexpected request #${callIndex + 1}: ${request.method} ${request.url}`);
+      };
 
       const result = await storage.list({ includeMetadata: true });
       assert.equal(result.cursor, undefined);
@@ -530,40 +556,58 @@ describe('S3FileStorage', () => {
       assert.equal(file.type, 'text/plain');
       assert.ok(file.lastModified);
       assert.equal(file.size, 13);
+      
+      // Verify both expected requests were made
+      assert.equal(callIndex, 1, `Expected 2 requests, but got ${callIndex + 1}`);
     });
   });
 
   describe('put()', () => {
     it('sets and gets a file in one operation', async () => {
-      // Mock the set operation (PUT)
-      mockResponses.push({
-        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`,
-        method: 'PUT',
-        handle: () => new Response(null, { status: 200 })
-      });
-      
-      // Mock the get operation (HEAD)
-      mockResponses.push({
-        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`,
-        method: 'HEAD',
-        handle: () => new Response(null, { 
-          status: 200,
-          headers: {
-            'content-length': '13',
-            'content-type': 'text/plain',
-            'x-amz-meta-name': 'test.txt',
-            'x-amz-meta-type': 'text/plain',
-            'x-amz-meta-lastModified': '1672531200000'
-          }
-        })
-      });
-
-      // The get operation will require a GET request for the content as well
-      mockResponses.push({
-        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`,
-        method: 'GET',
-        handle: () => new Response('Hello, world!', { status: 200 })
-      });
+      let callIndex = -1;
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        callIndex++;
+        const request = new Request(input, init);
+        
+        if (callIndex === 0) {
+          // First request: PUT request to upload the file
+          assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`);
+          assert.equal(request.method, 'PUT');
+          
+          // Verify the body content
+          const bodyText = await request.text();
+          assert.equal(bodyText, 'Hello, world!');
+          
+          return new Response(null, { status: 200 });
+        }
+        
+        if (callIndex === 1) {
+          // Second request: HEAD request to get metadata
+          assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`);
+          assert.equal(request.method, 'HEAD');
+          
+          return new Response(null, { 
+            status: 200,
+            headers: {
+              'content-length': '13',
+              'content-type': 'text/plain',
+              'x-amz-meta-name': 'test.txt',
+              'x-amz-meta-type': 'text/plain',
+              'x-amz-meta-lastModified': '1672531200000'
+            }
+          });
+        }
+        
+        if (callIndex === 2) {
+          // Third request: GET request to get content
+          assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`);
+          assert.equal(request.method, 'GET');
+          
+          return new Response('Hello, world!', { status: 200 });
+        }
+        
+        throw new Error(`Unexpected request #${callIndex + 1}: ${request.method} ${request.url}`);
+      };
       
       const testFile = new File(['Hello, world!'], 'test.txt', { 
         type: 'text/plain',
@@ -579,6 +623,9 @@ describe('S3FileStorage', () => {
       // Verify content
       const content = await result.text();
       assert.equal(content, 'Hello, world!');
+      
+      // Verify all expected requests were made
+      assert.equal(callIndex, 2, `Expected 3 requests, but got ${callIndex + 1}`);
     });
   });
 });
