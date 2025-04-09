@@ -2,6 +2,7 @@
 import * as assert from 'node:assert/strict';
 import { beforeEach, afterEach, describe, it } from 'node:test';
 import { S3FileStorage } from './s3-file-storage.ts';
+import { LazyFile } from '@mjackson/lazy-file';
 
 // Test constants
 const TEST_BUCKET = 'test-bucket';
@@ -179,10 +180,7 @@ describe('S3FileStorage', () => {
           
           // Verify the completion XML body
           const bodyXml = await request.text();
-          assert.ok(bodyXml.includes('<CompleteMultipartUpload>'));
-          assert.ok(bodyXml.includes('<Part>'));
-          assert.ok(bodyXml.includes('<PartNumber>1</PartNumber>'));
-          assert.ok(bodyXml.includes('<ETag>"test-etag"</ETag>'));
+          assert.equal(bodyXml, '<CompleteMultipartUpload><Part><PartNumber>1</PartNumber><ETag>"test-etag"</ETag></Part></CompleteMultipartUpload>');
           
           return xmlResponse(`
             <CompleteMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
@@ -201,6 +199,139 @@ describe('S3FileStorage', () => {
       
       // Verify all expected requests were made
       assert.equal(callIndex, 2, `Expected 3 requests, but got ${callIndex + 1}`);
+    });
+
+    it('handles large files correctly with multipart upload', async () => {
+      // Use the real 8MB chunk size from the implementation
+      const CHUNK_SIZE = 8 * 1024 * 1024; // 8MB
+      // Define the total file size - larger than chunk size
+      const FILE_SIZE = 10 * 1024 * 1024; // 10MB
+      
+      // Create a LazyContent implementation that generates data on-demand
+      const lazyContent = {
+        byteLength: FILE_SIZE,
+        stream: () => {
+          let generatedBytes = 0;
+          
+          return new ReadableStream({
+            pull(controller) {
+              if (generatedBytes >= FILE_SIZE) {
+                controller.close();
+                return;
+              }
+              
+              // Generate chunks of 1MB at a time to avoid large allocations
+              const chunkSize = Math.min(1 * 1024 * 1024, FILE_SIZE - generatedBytes);
+              const chunk = new Uint8Array(chunkSize);
+              
+              // Fill with 'A' (charCode 65)
+              chunk.fill(65);
+              
+              controller.enqueue(chunk);
+              generatedBytes += chunkSize;
+            }
+          });
+        }
+      };
+      
+      // Create a LazyFile with our large content
+      const testFile = new LazyFile(lazyContent, 'large.txt', { type: 'text/plain' });
+      
+      // Force the file to have an unknown size so we perform a multipart upload
+      Object.defineProperty(testFile, 'size', {
+        get: () => { throw new Error('Size not available'); }
+      });
+      
+      let callIndex = -1;
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        callIndex++;
+        const request = new Request(input, init);
+        const url = request.url;
+        const method = request.method;
+        
+        if (callIndex === 0) {
+          // First request: initiate multipart upload
+          assert.equal(method, 'POST');
+          assert.match(url, new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}/largefile\\?uploads=`));
+          
+          // Verify headers
+          assert.equal(request.headers.get('content-type'), 'text/plain');
+          assert.equal(request.headers.get('x-amz-meta-name'), 'large.txt');
+          
+          return xmlResponse(`
+            <InitiateMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+              <Bucket>${TEST_BUCKET}</Bucket>
+              <Key>largefile</Key>
+              <UploadId>test-upload-id-large</UploadId>
+            </InitiateMultipartUploadResult>
+          `);
+        } 
+        
+        if (callIndex === 1) {
+          // Second request: upload first part (ABCDE)
+          assert.equal(method, 'PUT');
+          assert.match(url, new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}/largefile\\?partNumber=1&uploadId=test-upload-id-large`));
+          
+          // Verify first chunk is exactly the CHUNK_SIZE (8MB)
+          const body = await request.arrayBuffer();
+          assert.equal(body.byteLength, CHUNK_SIZE);
+          
+          return new Response(null, { 
+            status: 200, 
+            headers: {
+              'ETag': '"etag-part1"'
+            }
+          });
+        }
+        
+        if (callIndex === 2) {
+          // Third request: upload second part
+          assert.equal(method, 'PUT');
+          assert.match(url, new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}/largefile\\?partNumber=2&uploadId=test-upload-id-large`));
+          
+          // Verify the size of the second chunk is the remaining 2MB
+          const body = await request.arrayBuffer();
+          assert.equal(body.byteLength, FILE_SIZE - CHUNK_SIZE);
+          
+          return new Response(null, { 
+            status: 200, 
+            headers: {
+              'ETag': '"etag-part2"'
+            }
+          });
+        }
+        
+        if (callIndex === 3) {
+          // Fifth request: complete multipart upload
+          assert.equal(method, 'POST');
+          assert.match(url, new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}/largefile\\?uploadId=test-upload-id-large$`));
+          
+          // Verify the completion XML body
+          const bodyXml = await request.text();
+          const expectedXml = '<CompleteMultipartUpload>' +
+            '<Part><PartNumber>1</PartNumber><ETag>"etag-part1"</ETag></Part>' +
+            '<Part><PartNumber>2</PartNumber><ETag>"etag-part2"</ETag></Part>' + 
+            '</CompleteMultipartUpload>';
+          assert.equal(bodyXml, expectedXml);
+          
+          return xmlResponse(`
+            <CompleteMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+              <Location>${TEST_ENDPOINT}/${TEST_BUCKET}/largefile</Location>
+              <Bucket>${TEST_BUCKET}</Bucket>
+              <Key>largefile</Key>
+              <ETag>"final-etag"</ETag>
+            </CompleteMultipartUploadResult>
+          `);
+        }
+        
+        throw new Error(`Unexpected request #${callIndex + 1}: ${method} ${url}`);
+      };
+      
+      // Create a mock streaming file
+      await storage.set('largefile', testFile);
+      
+      // Verify all expected requests were made
+      assert.equal(callIndex, 3, `Expected 4 requests, but got ${callIndex + 1}`);
     });
   });
 
