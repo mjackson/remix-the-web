@@ -52,8 +52,10 @@ function createChildren(): Children {
 
 export function createTree(patterns: Array<RoutePattern>): Node {
   const root = createNode();
-  const withDynamic: Set<Children> = new Set();
-
+  const dynamic = {
+    hostname: new Set<Children>(),
+    pathname: new Set<Children>(),
+  };
   for (const pattern of patterns) {
     for (const variant of variants(pattern)) {
       let node = root;
@@ -74,7 +76,7 @@ export function createTree(patterns: Array<RoutePattern>): Node {
         if (!child) {
           child = createNode();
           children.set(segment, child);
-          withDynamic.add(node.hostname);
+          dynamic.hostname.add(node.hostname);
         }
         node = child;
       }
@@ -87,7 +89,7 @@ export function createTree(patterns: Array<RoutePattern>): Node {
         if (!child) {
           child = createNode();
           children.set(segment, child);
-          withDynamic.add(node.pathname);
+          dynamic.pathname.add(node.pathname);
         }
         node = child;
       }
@@ -99,19 +101,21 @@ export function createTree(patterns: Array<RoutePattern>): Node {
     }
   }
 
-  for (const children of withDynamic) {
-    const dynamicOrder: Array<[string, RegExp]> = [];
-    for (const key of children.dynamic.keys()) {
-      dynamicOrder.push([key, toRegExp(key)]);
-    }
-    dynamicOrder.sort((a, b) => sortByStaticLengths(a[0], b[0]));
-    children.dynamicOrder = dynamicOrder;
-  }
+  setDynamicOrder(dynamic.hostname, /([^/])+/);
+  setDynamicOrder(dynamic.pathname, /([^.])+/);
 
   return root;
 }
 
 const escape = (source: string) => source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-function toRegExp(segment: string): RegExp {
-  return new RegExp('^' + escape(segment).replaceAll(':', '(\\w+)') + '$');
+function setDynamicOrder(blah: Set<Children>, paramValueRE: RegExp) {
+  for (const children of blah) {
+    const dynamicOrder: Array<[string, RegExp]> = [];
+    for (const segment of children.dynamic.keys()) {
+      const regex = new RegExp('^' + escape(segment).replaceAll(':', paramValueRE.source) + '$');
+      dynamicOrder.push([segment, regex]);
+    }
+    dynamicOrder.sort((a, b) => sortByStaticLengths(a[0], b[0]));
+    children.dynamicOrder = dynamicOrder;
+  }
 }

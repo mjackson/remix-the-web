@@ -72,6 +72,7 @@ describe('match', () => {
       'http://remix.run/:foo-two-:baz',
       'http://remix.run/:foo-:bar-three',
       'http://remix.run/:foo-:bar-:baz',
+      'http://remix.run/:foobarbaz',
     ]);
   });
 
