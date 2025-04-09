@@ -218,7 +218,7 @@ describe('S3FileStorage', () => {
     });
 
     it('creates a File with correct metadata from headers', async () => {
-      const lastModified = new Date('2023-01-01T00:00:00Z').getTime();
+      const lastModified = new Date('1999-12-31T23:59:59Z').getTime();
       
       let callIndex = -1;
       globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -356,14 +356,14 @@ describe('S3FileStorage', () => {
             <IsTruncated>false</IsTruncated>
             <Contents>
               <Key>file1</Key>
-              <LastModified>2023-01-01T00:00:00.000Z</LastModified>
+              <LastModified>1999-12-31T23:59:59.000Z</LastModified>
               <ETag>"etag1"</ETag>
               <Size>100</Size>
               <StorageClass>STANDARD</StorageClass>
             </Contents>
             <Contents>
               <Key>file2</Key>
-              <LastModified>2023-01-02T00:00:00.000Z</LastModified>
+              <LastModified>1999-12-31T23:59:59.000Z</LastModified>
               <ETag>"etag2"</ETag>
               <Size>200</Size>
               <StorageClass>STANDARD</StorageClass>
@@ -399,14 +399,14 @@ describe('S3FileStorage', () => {
               <IsTruncated>true</IsTruncated>
               <Contents>
                 <Key>file1</Key>
-                <LastModified>2023-01-01T00:00:00.000Z</LastModified>
+                <LastModified>1999-12-31T23:59:59.000Z</LastModified>
                 <ETag>"etag1"</ETag>
                 <Size>100</Size>
                 <StorageClass>STANDARD</StorageClass>
               </Contents>
               <Contents>
                 <Key>file2</Key>
-                <LastModified>2023-01-02T00:00:00.000Z</LastModified>
+                <LastModified>1999-12-31T23:59:59.000Z</LastModified>
                 <ETag>"etag2"</ETag>
                 <Size>200</Size>
                 <StorageClass>STANDARD</StorageClass>
@@ -430,7 +430,7 @@ describe('S3FileStorage', () => {
               <IsTruncated>false</IsTruncated>
               <Contents>
                 <Key>file3</Key>
-                <LastModified>2023-01-03T00:00:00.000Z</LastModified>
+                <LastModified>1999-12-31T23:59:59.000Z</LastModified>
                 <ETag>"etag3"</ETag>
                 <Size>300</Size>
                 <StorageClass>STANDARD</StorageClass>
@@ -473,14 +473,14 @@ describe('S3FileStorage', () => {
             <IsTruncated>false</IsTruncated>
             <Contents>
               <Key>folder/file1</Key>
-              <LastModified>2023-01-01T00:00:00.000Z</LastModified>
+              <LastModified>1999-12-31T23:59:59.000Z</LastModified>
               <ETag>"etag1"</ETag>
               <Size>100</Size>
               <StorageClass>STANDARD</StorageClass>
             </Contents>
             <Contents>
               <Key>folder/file2</Key>
-              <LastModified>2023-01-02T00:00:00.000Z</LastModified>
+              <LastModified>1999-12-31T23:59:59.000Z</LastModified>
               <ETag>"etag2"</ETag>
               <Size>200</Size>
               <StorageClass>STANDARD</StorageClass>
@@ -515,7 +515,7 @@ describe('S3FileStorage', () => {
               <IsTruncated>false</IsTruncated>
               <Contents>
                 <Key>file1</Key>
-                <LastModified>2023-01-01T00:00:00.000Z</LastModified>
+                <LastModified>1999-12-31T23:59:59.000Z</LastModified>
                 <ETag>"etag1"</ETag>
                 <Size>100</Size>
                 <StorageClass>STANDARD</StorageClass>
@@ -534,7 +534,7 @@ describe('S3FileStorage', () => {
             headers: {
               'content-length': '13',
               'content-type': 'text/plain',
-              'last-modified': new Date('2023-01-01T00:00:00Z').toUTCString(),
+              'last-modified': new Date('1999-12-31T23:59:59Z').toUTCString(),
               'x-amz-meta-name': 'test.txt',
               'x-amz-meta-type': 'text/plain',
               'x-amz-meta-lastModified': '1672531200000'
@@ -593,7 +593,7 @@ describe('S3FileStorage', () => {
               'content-type': 'text/plain',
               'x-amz-meta-name': 'test.txt',
               'x-amz-meta-type': 'text/plain',
-              'x-amz-meta-lastModified': '1672531200000'
+              'x-amz-meta-lastModified': '946684799000'
             }
           });
         }
@@ -611,14 +611,14 @@ describe('S3FileStorage', () => {
       
       const testFile = new File(['Hello, world!'], 'test.txt', { 
         type: 'text/plain',
-        lastModified: new Date('2023-01-01T00:00:00Z').getTime()
+        lastModified: new Date('1999-12-31T23:59:59Z').getTime()
       });
       
       const result = await storage.put('testfile', testFile);
       assert.ok(result instanceof File);
       assert.equal(result.name, 'test.txt');
       assert.equal(result.type, 'text/plain');
-      assert.equal(result.lastModified, new Date('2023-01-01T00:00:00Z').getTime());
+      assert.equal(result.lastModified, new Date('1999-12-31T23:59:59Z').getTime());
       
       // Verify content
       const content = await result.text();
