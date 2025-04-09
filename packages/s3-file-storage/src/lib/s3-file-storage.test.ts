@@ -35,7 +35,7 @@ describe('S3FileStorage', () => {
   
   // Helper function to create XML responses for S3
   function xmlResponse(content: string, status = 200, headers: Record<string, string> = {}) {
-    return new Response(content, {
+    return new Response('<?xml version="1.0" encoding="UTF-8"?>\n' + content, {
       status,
       headers: {
         'Content-Type': 'application/xml',
@@ -146,7 +146,7 @@ describe('S3FileStorage', () => {
           assert.equal(request.headers.get('x-amz-meta-name'), 'test.txt');
           assert.equal(request.headers.get('x-amz-meta-type'), 'text/plain');
           
-          return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
+          return xmlResponse(`
             <InitiateMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
               <Bucket>${TEST_BUCKET}</Bucket>
               <Key>multipartfile</Key>
@@ -184,7 +184,7 @@ describe('S3FileStorage', () => {
           assert.ok(bodyXml.includes('<PartNumber>1</PartNumber>'));
           assert.ok(bodyXml.includes('<ETag>"test-etag"</ETag>'));
           
-          return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
+          return xmlResponse(`
             <CompleteMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
               <Location>${TEST_ENDPOINT}/${TEST_BUCKET}/multipartfile</Location>
               <Bucket>${TEST_BUCKET}</Bucket>
@@ -347,7 +347,7 @@ describe('S3FileStorage', () => {
         assert.equal(request.method, 'GET');
         assert.match(request.url, new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}\\?list-type=2`));
         
-        return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
+        return xmlResponse(`
           <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
             <Name>${TEST_BUCKET}</Name>
             <Prefix></Prefix>
@@ -390,7 +390,7 @@ describe('S3FileStorage', () => {
           assert.equal(request.method, 'GET');
           assert.match(url, new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}\\?list-type=2.*max-keys=2`));
           
-          return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
+          return xmlResponse(`
             <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
               <Name>${TEST_BUCKET}</Name>
               <Prefix></Prefix>
@@ -421,7 +421,7 @@ describe('S3FileStorage', () => {
           assert.equal(request.method, 'GET');
           assert.match(url, new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}\\?list-type=2.*continuation-token=token123`));
           
-          return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
+          return xmlResponse(`
             <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
               <Name>${TEST_BUCKET}</Name>
               <Prefix></Prefix>
@@ -464,7 +464,7 @@ describe('S3FileStorage', () => {
         assert.equal(request.method, 'GET');
         assert.match(request.url, new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}\\?list-type=2.*prefix=folder%2F`));
         
-        return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
+        return xmlResponse(`
           <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
             <Name>${TEST_BUCKET}</Name>
             <Prefix>folder/</Prefix>
@@ -506,7 +506,7 @@ describe('S3FileStorage', () => {
           assert.equal(request.method, 'GET');
           assert.match(request.url, new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}\\?list-type=2`));
           
-          return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
+          return xmlResponse(`
             <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
               <Name>${TEST_BUCKET}</Name>
               <Prefix></Prefix>
