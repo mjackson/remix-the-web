@@ -249,12 +249,6 @@ importers:
         specifier: ^1.0.17
         version: 1.0.20
     devDependencies:
-      '@mjackson/fetch-proxy':
-        specifier: workspace:^
-        version: link:../fetch-proxy
-      '@mjackson/form-data-parser':
-        specifier: workspace:^
-        version: link:../form-data-parser
       '@types/node':
         specifier: ^20.14.10
         version: 20.16.1

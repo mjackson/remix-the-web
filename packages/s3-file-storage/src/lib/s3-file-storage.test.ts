@@ -1,248 +1,578 @@
+// filepath: /Users/len/github.com/kevlened/remix-the-web/packages/s3-file-storage/src/lib/s3-file-storage.test.ts
 import * as assert from 'node:assert/strict';
-import { afterEach, before, after, describe, it } from 'node:test';
-import { resolve, dirname } from 'node:path';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { parseFormData } from '@mjackson/form-data-parser';
+import { beforeEach, afterEach, describe, it } from 'node:test';
 import { S3FileStorage } from './s3-file-storage.ts';
-import { S3_ENDPOINT, startMinioServer, stopMinioServer, createBucket, clearAllMinioData } from '../../test/minio.ts';
-import { overrideGlobalFetch, resetGlobalFetch } from '../../test/record-replay.ts';
 
-// Test bucket name
+// Test constants
 const TEST_BUCKET = 'test-bucket';
-
-// For controlling record/playback mode
-const RECORD_MODE = process.env.RECORD_MODE === 'record' ? 'record' : 'playback';
-
-// Get the directory name in ES modules
-const currentDir = dirname(fileURLToPath(import.meta.url));
-// Directory for test fixtures
-const FIXTURES_DIR = resolve(currentDir, '../../test/fixtures');
+const TEST_ACCESS_KEY = 'test-access-key';
+const TEST_SECRET_KEY = 'test-secret-key';
+const TEST_REGION = 'us-east-1';
+const TEST_ENDPOINT = 'http://localhost:9000';
 
 describe('S3FileStorage', () => {
   let storage: S3FileStorage;
-  let minioStarted = false;
+  let originalFetch: typeof fetch;
+  let mockResponses: Array<{
+    url: string | RegExp;
+    method: string;
+    handle: (request: Request) => Response | Promise<Response>;
+    headers?: Record<string, string>;
+    body?: string;
+  }>;
 
-  before(async () => {
-    // Only start the MinIO server in record mode
-    if (RECORD_MODE === 'record') {
-      await startMinioServer();
-      await createBucket(TEST_BUCKET);
-      minioStarted = true;
-    }
+  beforeEach(() => {
+    mockResponses = [];
+    originalFetch = globalThis.fetch;
 
-    // Create test storage client connected to MinIO
+    // Mock fetch to intercept and respond to specific requests
+    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = input instanceof Request ? input : new Request(input, init);
+      const url = request.url;
+      const method = request.method;
+
+      // Find and return matching mock response
+      for (const mock of mockResponses) {
+        if (
+          (typeof mock.url === 'string' && url === mock.url || 
+           mock.url instanceof RegExp && mock.url.test(url)) && 
+          mock.method === method
+        ) {
+          // Validate headers if specified
+          if (mock.headers) {
+            for (const [key, value] of Object.entries(mock.headers)) {
+              const headerValue = request.headers.get(key);
+              if (headerValue !== value) {
+                throw new Error(`Expected header ${key}=${value}, got ${headerValue}`);
+              }
+            }
+          }
+          
+          // Validate body if specified
+          if (mock.body !== undefined) {
+            const bodyText = await request.clone().text();
+            if (bodyText !== mock.body) {
+              throw new Error(`Expected body "${mock.body}", got "${bodyText}"`);
+            }
+          }
+          
+          // Handle the request and return the response
+          return mock.handle(request);
+        }
+      }
+      
+      // If no mocks match, warn and throw an error
+      console.warn(`No mock found for ${method} ${url}`);
+      throw new Error(`No mock found for ${method} ${url}`);
+    };
+
+    // Create test storage client
     storage = new S3FileStorage({
-      accessKeyId: 'minioadmin',
-      secretAccessKey: 'minioadmin',
-      region: 'us-east-1',
+      accessKeyId: TEST_ACCESS_KEY,
+      secretAccessKey: TEST_SECRET_KEY,
+      region: TEST_REGION,
       bucket: TEST_BUCKET,
-      endpoint: S3_ENDPOINT,
+      endpoint: TEST_ENDPOINT,
       forcePathStyle: true,
     });
   });
 
-  after(async () => {
-    if (minioStarted) {
-      await stopMinioServer();
-      await clearAllMinioData();
-    }
+  afterEach(() => {
+    // Restore the original fetch
+    globalThis.fetch = originalFetch;
+    mockResponses = [];
   });
-
-  afterEach(async () => {
-    // Reset global fetch after each test
-    resetGlobalFetch();
-
-    // Only remove files in record mode
-    if (RECORD_MODE === 'record') {
-      const objects = await storage.list();
-      for (const object of objects.files) {
-        await storage.remove(object.key);
+  
+  // Helper function to create XML responses for S3
+  function xmlResponse(content: string, status = 200, headers: Record<string, string> = {}) {
+    return new Response(content, {
+      status,
+      headers: {
+        'Content-Type': 'application/xml',
+        ...headers
       }
-    }
-  });
-
-  it('stores and retrieves files', async () => {
-    // Override global fetch with record or playback mode
-    await overrideGlobalFetch(S3_ENDPOINT, {
-      mode: RECORD_MODE,
-      recordingFilePath: join(FIXTURES_DIR, 'stores_and_retrieves_files.json'),
     });
+  }
 
-    const lastModified = new Date('1999-12-31T23:59:59Z').getTime();
-    const file = new File(['Hello, world!'], 'hello.txt', {
-      type: 'text/plain',
-      lastModified,
-    });
-
-    await storage.set('hello', file);
-
-    assert.ok(await storage.has('hello'));
-
-    const retrieved = await storage.get('hello');
-
-    assert.ok(retrieved);
-    assert.equal(retrieved.name, 'hello.txt');
-    assert.equal(retrieved.type, 'text/plain');
-    assert.equal(retrieved.lastModified, lastModified);
-    assert.equal(retrieved.size, 13);
-
-    const text = await retrieved.text();
-    assert.equal(text, 'Hello, world!');
-
-    await storage.remove('hello');
-
-    assert.ok(!(await storage.has('hello')));
-    assert.equal(await storage.get('hello'), null);
-  });
-
-  it('lists files with pagination', async () => {
-    // Override global fetch with record or playback mode
-    await overrideGlobalFetch(S3_ENDPOINT, {
-      mode: RECORD_MODE,
-      recordingFilePath: join(FIXTURES_DIR, 'lists_files_with_pagination.json'),
-    });
-
-    const allKeys = ['a', 'b', 'c', 'd', 'e'];
-    
-    for (const key of allKeys) {
-      await storage.set(key, new File([`Hello ${key}!`], `hello.txt`, { type: 'text/plain' }));
-    }
-
-    const { cursor, files } = await storage.list();
-    assert.equal(cursor, undefined);
-    assert.equal(files.length, 5);
-    assert.deepEqual(files.map((f) => f.key).sort(), allKeys);
-
-    const { cursor: cursor1, files: files1 } = await storage.list({ limit: 0 });
-    assert.equal(cursor1, undefined);
-    assert.equal(files1.length, 0);
-
-    const { cursor: cursor2, files: files2 } = await storage.list({ limit: 2 });
-    assert.ok(cursor2, 'Expected a cursor for pagination');
-    assert.equal(files2.length, 2);
-
-    const { cursor: cursor3, files: files3 } = await storage.list({ cursor: cursor2 });
-    assert.equal(cursor3, undefined);
-    assert.equal(files3.length, 3);
-
-    assert.deepEqual([...files2, ...files3].map((f) => f.key).sort(), allKeys);
-  });
-
-  it('lists files by key prefix', async () => {
-    // Override global fetch with record or playback mode
-    await overrideGlobalFetch(S3_ENDPOINT, {
-      mode: RECORD_MODE,
-      recordingFilePath: join(FIXTURES_DIR, 'lists_files_by_key_prefix.json'),
-    });
-
-    // a limitation of minio (not s3) is objects can't collide with prefixes, so b must be b.ext
-    // https://min.io/docs/minio/linux/operations/concepts/thresholds.html#conflicting-objects
-    const allKeys = ['a', 'b.ext', 'b/c', 'd', 'e'];
-
-    for (const key of allKeys) {
-      await storage.set(key, new File([`Hello ${key}!`], `hello.txt`, { type: 'text/plain' }));
-    }
-
-    const { cursor, files } = await storage.list({ prefix: 'b' });
-    assert.equal(cursor, undefined);
-    assert.equal(files.length, 2);
-    assert.deepEqual(files.map((f) => f.key).sort(), ['b.ext', 'b/c']);
-  });
-
-  it('lists files with metadata', async () => {
-    // Override global fetch with record or playback mode
-    await overrideGlobalFetch(S3_ENDPOINT, {
-      mode: RECORD_MODE,
-      recordingFilePath: join(FIXTURES_DIR, 'lists_files_with_metadata.json'),
-    });
-
-    const allKeys = ['a', 'b', 'c', 'd', 'e'];
-
-    for (const key of allKeys) {
-      await storage.set(key, new File([`Hello ${key}!`], `hello.txt`, { type: 'text/plain' }));
-    }
-
-    const { cursor, files } = await storage.list({ includeMetadata: true });
-    assert.equal(cursor, undefined);
-    assert.equal(files.length, 5);
-    assert.deepEqual(files.map((f) => f.key).sort(), allKeys);
-    files.forEach((f) => assert.ok('lastModified' in f));
-    files.forEach((f) => assert.ok('name' in f));
-    files.forEach((f) => assert.ok('size' in f));
-    files.forEach((f) => assert.ok('type' in f));
-  });
-
-  it('handles race conditions', async () => {
-    // Override global fetch with record or playback mode
-    await overrideGlobalFetch(S3_ENDPOINT, {
-      mode: RECORD_MODE,
-      recordingFilePath: join(FIXTURES_DIR, 'handles_race_conditions.json'),
-    });
-
-    const lastModified = new Date('1999-12-31T23:59:59Z').getTime();
-
-    const file1 = new File(['Hello, world!'], 'hello1.txt', {
-      type: 'text/plain',
-      lastModified,
-    });
-
-    const file2 = new File(['Hello, universe!'], 'hello2.txt', {
-      type: 'text/plain',
-      lastModified,
-    });
-
-    const setPromise = storage.set('one', file1);
-    await storage.set('two', file2);
-
-    const retrieved1 = await storage.get('one');
-    assert.ok(retrieved1);
-    assert.equal(await retrieved1.text(), 'Hello, world!');
-
-    await setPromise;
-    const retrieved2 = await storage.get('two');
-    assert.ok(retrieved2);
-    assert.equal(await retrieved2.text(), 'Hello, universe!');
-  });
-
-  describe('integration with form-data-parser', () => {
-    it('stores and lists file uploads', async () => {
-      // Override global fetch with record or playback mode
-      await overrideGlobalFetch(S3_ENDPOINT, {
-        mode: RECORD_MODE,
-        recordingFilePath: join(FIXTURES_DIR, 'stores_and_lists_file_uploads.json'),
+  describe('has()', () => {
+    it('returns true when file exists', async () => {
+      mockResponses.push({
+        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`,
+        method: 'HEAD',
+        handle: () => new Response(null, { status: 200 }),
       });
 
-      const boundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW';
-      const request = new Request('http://example.com', {
+      const result = await storage.has('testfile');
+      assert.equal(result, true);
+    });
+
+    it('returns false when file does not exist', async () => {
+      mockResponses.push({
+        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/nonexistent`,
+        method: 'HEAD',
+        handle: () => new Response(null, { status: 404 })
+      });
+
+      const result = await storage.has('nonexistent');
+      assert.equal(result, false);
+    });
+
+    it('throws when response is not ok or 404', async () => {
+      mockResponses.push({
+        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/error`,
+        method: 'HEAD',
+        // avoid returning a 500, because that triggers a retry
+        handle: () => new Response(null, { status: 418, statusText: "I'm a teapot" })
+      });
+
+      await assert.rejects(
+        async () => await storage.has('error'),
+        /Failed to check existence of file: I'm a teapot/
+      );
+    });
+  });
+
+  describe('set()', () => {
+    it('sets a file with standard PUT when size is known', async () => {
+      mockResponses.push({
+        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`,
+        method: 'PUT',
+        headers: {
+            'content-type': 'text/plain'
+        },
+        body: 'Hello, world!',
+        handle: () => new Response(null, { status: 200 }),
+      });
+
+      const testFile = new File(['Hello, world!'], 'test.txt', { type: 'text/plain' });
+      await storage.set('testfile', testFile);
+    });
+
+    it('throws an error when PUT response is not ok', async () => {
+      mockResponses.push({
+        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/errorfile`,
+        method: 'PUT',
+        // avoid returning a 500, because that triggers a retry
+        handle: () => new Response(null, { status: 418, statusText: "I'm a teapot" })
+      });
+
+      const testFile = new File(['Hello, world!'], 'test.txt', { type: 'text/plain' });
+      
+      await assert.rejects(
+        async () => await storage.set('errorfile', testFile),
+        /Failed to upload file: I'm a teapot/
+      );
+    });
+
+    it('uses multipart upload when file size is unknown', async () => {
+      // Create a file with unknown size
+      const testFile = new File(['Hello, world!'], 'test.txt', { type: 'text/plain' });
+      Object.defineProperty(testFile, 'size', {
+        get: () => { throw new Error('Size not available'); }
+      });
+      
+      // Mock multipart upload initiation
+      mockResponses.push({
+        url: new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}/multipartfile\\?uploads=`),
         method: 'POST',
         headers: {
-          'Content-Type': `multipart/form-data; boundary=${boundary}`,
+            'content-type': 'text/plain',
+            'x-amz-meta-name': 'test.txt',
+            'x-amz-meta-type': 'text/plain',
         },
-        body: [
-          `--${boundary}`,
-          'Content-Disposition: form-data; name="hello"; filename="hello.txt"',
-          'Content-Type: text/plain',
-          '',
-          'Hello, world!',
-          `--${boundary}--`,
-        ].join('\r\n'),
+        handle: () => {
+          return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
+            <InitiateMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+              <Bucket>${TEST_BUCKET}</Bucket>
+              <Key>multipartfile</Key>
+              <UploadId>test-upload-id</UploadId>
+            </InitiateMultipartUploadResult>
+          `);
+        }
+      });
+      
+      // Mock part upload
+      mockResponses.push({
+        url: new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}/multipartfile\\?partNumber=1&uploadId=test-upload-id`),
+        method: 'PUT',
+        body: 'Hello, world!',
+        handle: () => new Response(null, { 
+            status: 200, 
+            headers: {
+                'ETag': '"test-etag"'
+            }
+        })
+      });
+      
+      // Mock completion
+      mockResponses.push({
+        url: new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}/multipartfile\\?uploadId=test-upload-id$`),
+        method: 'POST',
+        handle: async (request) => {
+          // Verify the completion XML body includes the proper ETag
+          const bodyXml = await request.text();
+          assert.ok(bodyXml.includes('<CompleteMultipartUpload>'));
+          assert.ok(bodyXml.includes('<Part>'));
+          assert.ok(bodyXml.includes('<PartNumber>1</PartNumber>'));
+          assert.ok(bodyXml.includes('<ETag>"test-etag"</ETag>'));
+          
+          return xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
+            <CompleteMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+              <Location>${TEST_ENDPOINT}/${TEST_BUCKET}/multipartfile</Location>
+              <Bucket>${TEST_BUCKET}</Bucket>
+              <Key>multipartfile</Key>
+              <ETag>"test-etag"</ETag>
+            </CompleteMultipartUploadResult>
+          `);
+        }
+      });
+      
+      await storage.set('multipartfile', testFile);
+    });
+  });
+
+  describe('get()', () => {
+    it('returns null when file does not exist', async () => {
+      mockResponses.push({
+        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/nonexistent`,
+        method: 'HEAD',
+        handle: () => new Response(null, { status: 404 })
       });
 
-      await parseFormData(request, async (file) => {
-        await storage.set('hello', file);
+      const result = await storage.get('nonexistent');
+      assert.equal(result, null);
+    });
+
+    it('creates a File with correct metadata from headers', async () => {
+      const lastModified = new Date('2023-01-01T00:00:00Z').getTime();
+      
+      // Mock the HEAD request to get metadata
+      mockResponses.push({
+        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`,
+        method: 'HEAD',
+        handle: () => new Response(null, { 
+          status: 200,
+          headers: {
+            'content-length': '13',
+            'content-type': 'text/plain',
+            'last-modified': new Date(lastModified).toUTCString(),
+            'x-amz-meta-name': 'test.txt',
+            'x-amz-meta-type': 'text/plain',
+            'x-amz-meta-lastModified': lastModified.toString()
+          }
+        })
       });
 
-      assert.ok(await storage.has('hello'));
+      // Mock the GET request for the content
+      mockResponses.push({
+        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`,
+        method: 'GET',
+        handle: () => new Response('Hello, world!', { 
+          status: 200,
+          headers: {
+            'content-type': 'text/plain',
+            'content-length': '13'
+          }
+        })
+      });
 
-      const { files } = await storage.list({ includeMetadata: true });
+      const file = await storage.get('testfile');
+      assert.ok(file instanceof File);
+      assert.equal(file!.name, 'test.txt');
+      assert.equal(file!.type, 'text/plain');
+      assert.equal(file!.size, 13);
+      assert.equal(file!.lastModified, lastModified);
+      
+      // Check that the content is correctly loaded
+      const content = await file!.text();
+      assert.equal(content, 'Hello, world!');
+    });
 
-      assert.equal(files.length, 1);
-      assert.equal(files[0].key, 'hello');
-      assert.equal(files[0].name, 'hello.txt');
-      assert.equal(files[0].size, 13);
-      assert.equal(files[0].type, 'text/plain');
-      assert.ok(files[0].lastModified);
+    it('handles range requests correctly', async () => {
+      // Mock the HEAD request to get metadata
+      mockResponses.push({
+        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`,
+        method: 'HEAD',
+        handle: () => new Response(null, { 
+          status: 200,
+          headers: {
+            'content-length': '13',
+            'content-type': 'text/plain'
+          }
+        })
+      });
+
+      // Mock the GET request with range header
+      mockResponses.push({
+        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`,
+        method: 'GET',
+        handle: () => new Response('llo,', { 
+          status: 206,
+          headers: {
+            'content-type': 'text/plain',
+            'content-length': '4',
+            'content-range': 'bytes 2-5/13'
+          }
+        })
+      });
+
+      const file = await storage.get('testfile');
+      assert.ok(file);
+      
+      // Use the slice method to get a range of bytes
+      const blob = file!.slice(2, 6);
+      assert.equal(await blob.text(), 'llo,');
+    });
+  });
+
+  describe('remove()', () => {
+    it('deletes a file correctly', async () => {
+      mockResponses.push({
+        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`,
+        method: 'DELETE',
+        handle: () => new Response(null, { status: 204 })
+      });
+
+      await storage.remove('testfile');
+      // If no error, the test passes
+    });
+  });
+
+  describe('list()', () => {
+    it('lists files without metadata', async () => {
+      mockResponses.push({
+        url: new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}\\?list-type=2`),
+        method: 'GET',
+        handle: () => xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
+          <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+            <Name>${TEST_BUCKET}</Name>
+            <Prefix></Prefix>
+            <KeyCount>2</KeyCount>
+            <MaxKeys>1000</MaxKeys>
+            <IsTruncated>false</IsTruncated>
+            <Contents>
+              <Key>file1</Key>
+              <LastModified>2023-01-01T00:00:00.000Z</LastModified>
+              <ETag>"etag1"</ETag>
+              <Size>100</Size>
+              <StorageClass>STANDARD</StorageClass>
+            </Contents>
+            <Contents>
+              <Key>file2</Key>
+              <LastModified>2023-01-02T00:00:00.000Z</LastModified>
+              <ETag>"etag2"</ETag>
+              <Size>200</Size>
+              <StorageClass>STANDARD</StorageClass>
+            </Contents>
+          </ListBucketResult>
+        `)
+      });
+
+      const result = await storage.list();
+      assert.equal(result.cursor, undefined);
+      assert.equal(result.files.length, 2);
+      assert.deepEqual(result.files.map(f => f.key), ['file1', 'file2']);
+    });
+
+    it('handles pagination correctly', async () => {
+      mockResponses.push({
+        url: new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}\\?list-type=2.*max-keys=2`),
+        method: 'GET',
+        handle: () => xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
+          <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+            <Name>${TEST_BUCKET}</Name>
+            <Prefix></Prefix>
+            <KeyCount>2</KeyCount>
+            <MaxKeys>2</MaxKeys>
+            <IsTruncated>true</IsTruncated>
+            <Contents>
+              <Key>file1</Key>
+              <LastModified>2023-01-01T00:00:00.000Z</LastModified>
+              <ETag>"etag1"</ETag>
+              <Size>100</Size>
+              <StorageClass>STANDARD</StorageClass>
+            </Contents>
+            <Contents>
+              <Key>file2</Key>
+              <LastModified>2023-01-02T00:00:00.000Z</LastModified>
+              <ETag>"etag2"</ETag>
+              <Size>200</Size>
+              <StorageClass>STANDARD</StorageClass>
+            </Contents>
+            <NextContinuationToken>token123</NextContinuationToken>
+          </ListBucketResult>
+        `)
+      });
+
+      mockResponses.push({
+        url: new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}\\?list-type=2.*continuation-token=token123`),
+        method: 'GET',
+        handle: () => xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
+          <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+            <Name>${TEST_BUCKET}</Name>
+            <Prefix></Prefix>
+            <KeyCount>1</KeyCount>
+            <MaxKeys>2</MaxKeys>
+            <IsTruncated>false</IsTruncated>
+            <Contents>
+              <Key>file3</Key>
+              <LastModified>2023-01-03T00:00:00.000Z</LastModified>
+              <ETag>"etag3"</ETag>
+              <Size>300</Size>
+              <StorageClass>STANDARD</StorageClass>
+            </Contents>
+          </ListBucketResult>
+        `)
+      });
+
+      // First page
+      const result1 = await storage.list({ limit: 2 });
+      assert.equal(result1.cursor, 'token123');
+      assert.equal(result1.files.length, 2);
+      assert.deepEqual(result1.files.map(f => f.key), ['file1', 'file2']);
+
+      // Second page
+      const result2 = await storage.list({ cursor: result1.cursor });
+      assert.equal(result2.cursor, undefined);
+      assert.equal(result2.files.length, 1);
+      assert.deepEqual(result2.files.map(f => f.key), ['file3']);
+    });
+
+    it('filters by prefix correctly', async () => {
+      mockResponses.push({
+        url: new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}\\?list-type=2.*prefix=folder%2F`),
+        method: 'GET',
+        handle: () => xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
+          <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+            <Name>${TEST_BUCKET}</Name>
+            <Prefix>folder/</Prefix>
+            <KeyCount>2</KeyCount>
+            <MaxKeys>1000</MaxKeys>
+            <IsTruncated>false</IsTruncated>
+            <Contents>
+              <Key>folder/file1</Key>
+              <LastModified>2023-01-01T00:00:00.000Z</LastModified>
+              <ETag>"etag1"</ETag>
+              <Size>100</Size>
+              <StorageClass>STANDARD</StorageClass>
+            </Contents>
+            <Contents>
+              <Key>folder/file2</Key>
+              <LastModified>2023-01-02T00:00:00.000Z</LastModified>
+              <ETag>"etag2"</ETag>
+              <Size>200</Size>
+              <StorageClass>STANDARD</StorageClass>
+            </Contents>
+          </ListBucketResult>
+        `)
+      });
+
+      const result = await storage.list({ prefix: 'folder/' });
+      assert.equal(result.cursor, undefined);
+      assert.equal(result.files.length, 2);
+      assert.deepEqual(result.files.map(f => f.key), ['folder/file1', 'folder/file2']);
+    });
+
+    it('includes metadata when requested', async () => {
+      // First mock the list request
+      mockResponses.push({
+        url: new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}\\?list-type=2`),
+        method: 'GET',
+        handle: () => xmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
+          <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+            <Name>${TEST_BUCKET}</Name>
+            <Prefix></Prefix>
+            <KeyCount>1</KeyCount>
+            <MaxKeys>1000</MaxKeys>
+            <IsTruncated>false</IsTruncated>
+            <Contents>
+              <Key>file1</Key>
+              <LastModified>2023-01-01T00:00:00.000Z</LastModified>
+              <ETag>"etag1"</ETag>
+              <Size>100</Size>
+              <StorageClass>STANDARD</StorageClass>
+            </Contents>
+          </ListBucketResult>
+        `)
+      });
+
+      // Then mock the HEAD request that will be made for metadata
+      mockResponses.push({
+        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/file1`,
+        method: 'HEAD',
+        handle: () => new Response(null, { 
+          status: 200,
+          headers: {
+            'content-length': '13',
+            'content-type': 'text/plain',
+            'last-modified': new Date('2023-01-01T00:00:00Z').toUTCString(),
+            'x-amz-meta-name': 'test.txt',
+            'x-amz-meta-type': 'text/plain',
+            'x-amz-meta-lastModified': '1672531200000'
+          }
+        })
+      });
+
+      const result = await storage.list({ includeMetadata: true });
+      assert.equal(result.cursor, undefined);
+      assert.equal(result.files.length, 1);
+      
+      // Check that the file object includes metadata
+      const file = result.files[0];
+      assert.equal(file.key, 'file1');
+      assert.equal(file.name, 'test.txt');
+      assert.equal(file.type, 'text/plain');
+      assert.ok(file.lastModified);
+      assert.equal(file.size, 13);
+    });
+  });
+
+  describe('put()', () => {
+    it('sets and gets a file in one operation', async () => {
+      // Mock the set operation (PUT)
+      mockResponses.push({
+        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`,
+        method: 'PUT',
+        handle: () => new Response(null, { status: 200 })
+      });
+      
+      // Mock the get operation (HEAD)
+      mockResponses.push({
+        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`,
+        method: 'HEAD',
+        handle: () => new Response(null, { 
+          status: 200,
+          headers: {
+            'content-length': '13',
+            'content-type': 'text/plain',
+            'x-amz-meta-name': 'test.txt',
+            'x-amz-meta-type': 'text/plain',
+            'x-amz-meta-lastModified': '1672531200000'
+          }
+        })
+      });
+
+      // The get operation will require a GET request for the content as well
+      mockResponses.push({
+        url: `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`,
+        method: 'GET',
+        handle: () => new Response('Hello, world!', { status: 200 })
+      });
+      
+      const testFile = new File(['Hello, world!'], 'test.txt', { 
+        type: 'text/plain',
+        lastModified: new Date('2023-01-01T00:00:00Z').getTime()
+      });
+      
+      const result = await storage.put('testfile', testFile);
+      assert.ok(result instanceof File);
+      assert.equal(result.name, 'test.txt');
+      assert.equal(result.type, 'text/plain');
+      assert.equal(result.lastModified, new Date('2023-01-01T00:00:00Z').getTime());
+      
+      // Verify content
+      const content = await result.text();
+      assert.equal(content, 'Hello, world!');
     });
   });
 });
