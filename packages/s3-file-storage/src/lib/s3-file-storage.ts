@@ -58,7 +58,15 @@ export class S3FileStorage implements FileStorage {
     this.bucket = options.bucket;
     this.region = options.region || 'us-east-1';
     this.endpoint = options.endpoint || `https://${this.bucket}.s3.${this.region}.amazonaws.com`;
-    this.forcePathStyle = !!options.forcePathStyle;
+    
+    if (options.forcePathStyle !== undefined) {
+      this.forcePathStyle = !!options.forcePathStyle
+    } else {
+      // This is how the official s3 client determines if it should use path style or virtual hosted style
+      // https://github.com/aws/aws-sdk-js-v3/blob/d1501040077b937ef23e591238cda4bbe729c721/lib/lib-storage/src/Upload.ts#L172-L183
+      const endpointHostnameIncludesBucket = new URL(this.endpoint).hostname.startsWith(this.bucket + '.')
+      this.forcePathStyle = !endpointHostnameIncludesBucket
+    }
   }
 
   /**
