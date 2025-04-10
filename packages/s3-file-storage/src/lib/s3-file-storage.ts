@@ -270,6 +270,23 @@ export class S3FileStorage implements FileStorage {
     }
   }
 
+  private extractMetadata(key: string, headers: Headers): FileMetadata {
+    const lastModifiedHeader = headers.get('last-modified');
+    const lastModified = lastModifiedHeader ? new Date(lastModifiedHeader).getTime() : Date.now();
+    
+    const metadataName = headers.get('x-amz-meta-name') || '';
+    const metadataLastModified = headers.get('x-amz-meta-lastModified') || '';
+    const metadataType = headers.get('x-amz-meta-type') || '';
+    
+    return {
+      key,
+      name: metadataName,
+      lastModified: parseInt(metadataLastModified, 10) || lastModified,
+      type: metadataType,
+      size: parseInt(headers.get('content-length') || '0', 10),
+    };
+  }
+
   /**
    * Returns the file with the given key, or `null` if no such key exists.
    * Uses a HEAD request to get metadata and creates a LazyFile that will only fetch the content when needed.
@@ -285,28 +302,22 @@ export class S3FileStorage implements FileStorage {
       return null;
     }
 
-    const contentLength = initial.headers.get('content-length');
-    const contentType = initial.headers.get('content-type') || '';
-    const lastModifiedHeader = initial.headers.get('last-modified');
-    const lastModified = lastModifiedHeader ? new Date(lastModifiedHeader).getTime() : Date.now();
+    const {
+      name,
+      lastModified,
+      type,
+      size
+    } = this.extractMetadata(key, initial.headers);
     
     // Try to get the file name from metadata
-    let fileName = key.split('/').pop() || key;
-    
-    const metadataName = initial.headers.get('x-amz-meta-name');
-    const metadataLastModified = initial.headers.get('x-amz-meta-lastModified');
-    const metadataType = initial.headers.get('x-amz-meta-type');
-    
-    if (metadataName) {
-      fileName = metadataName;
-    }
+    const fileName = name || key.split('/').pop() || key;
 
     // Store AWS client and key in variables that can be captured by the closure
     const aws = this.aws;
     
     // Create LazyContent implementation that will fetch the file only when needed
     const lazyContent: LazyContent = {
-      byteLength: contentLength ? parseInt(contentLength, 10) : 0,
+      byteLength: size,
       stream(start?: number, end?: number): ReadableStream<Uint8Array> {
         return new ReadableStream({
           async start(controller) {
@@ -360,8 +371,8 @@ export class S3FileStorage implements FileStorage {
       lazyContent,
       fileName,
       {
-        type: metadataType || contentType,
-        lastModified: metadataLastModified ? parseInt(metadataLastModified, 10) : lastModified
+        type,
+        lastModified
       }
     );
   }
@@ -441,14 +452,13 @@ export class S3FileStorage implements FileStorage {
       
       // TODO: make many requests in a queue
       for (const key of keys) {
-        const file = await this.get(key);
-        files.push({
-          key,
-          lastModified: file?.lastModified || Date.now(),
-          name: file?.name || key.split('/').pop() || key,
-          size: file?.size || 0,
-          type: file?.type || '',
+        const head = await this.aws.fetch(this.getObjectUrl(key), {
+          method: 'HEAD',
         });
+        if (!head.ok) {
+          throw new Error(`Failed to fetch metadata for file: ${head.statusText}`);
+        }
+        files.push(this.extractMetadata(key, head.headers));
       }
       
       return {

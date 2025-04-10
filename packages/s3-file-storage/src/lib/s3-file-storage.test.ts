@@ -716,9 +716,9 @@ describe('S3FileStorage', () => {
         if (callIndex === 1) {
           // Second request: HEAD request to get metadata
           assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`);
-          assert.equal(request.method, 'HEAD');
+          assert.equal(request.method, 'GET');
           
-          return new Response(null, { 
+          return new Response('Hello, world!', { 
             status: 200,
             headers: {
               'content-length': '13',
@@ -728,14 +728,6 @@ describe('S3FileStorage', () => {
               'x-amz-meta-lastModified': '946684799000'
             }
           });
-        }
-        
-        if (callIndex === 2) {
-          // Third request: GET request to get content
-          assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`);
-          assert.equal(request.method, 'GET');
-          
-          return new Response('Hello, world!', { status: 200 });
         }
         
         throw new Error(`Unexpected request #${callIndex + 1}: ${request.method} ${request.url}`);
@@ -757,7 +749,7 @@ describe('S3FileStorage', () => {
       assert.equal(content, 'Hello, world!');
       
       // Verify all expected requests were made
-      assert.equal(callIndex, 2, `Expected 3 requests, but got ${callIndex + 1}`);
+      assert.equal(callIndex, 1, `Expected 2 requests, but got ${callIndex + 1}`);
     });
   });
 });
