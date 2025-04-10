@@ -271,19 +271,22 @@ export class S3FileStorage implements FileStorage {
   }
 
   private extractMetadata(key: string, headers: Headers): FileMetadata {
-    const lastModifiedHeader = headers.get('last-modified');
-    const lastModified = lastModifiedHeader ? new Date(lastModifiedHeader).getTime() : Date.now();
+    const metadataLastModified = headers.get('x-amz-meta-lastModified');
+    const lastModifiedHeader = headers.get('last-modified')!;
+    const lastModified = metadataLastModified ? parseInt(metadataLastModified) : new Date(lastModifiedHeader).getTime();
     
-    const metadataName = headers.get('x-amz-meta-name') || '';
-    const metadataLastModified = headers.get('x-amz-meta-lastModified') || '';
-    const metadataType = headers.get('x-amz-meta-type') || '';
+    let name = headers.get('x-amz-meta-name');
+    if (!name) {
+      name = key.split('/').pop() || key;
+    }
+    const type = headers.get('x-amz-meta-type') || headers.get('content-type') || '';
     
     return {
       key,
-      name: metadataName,
-      lastModified: parseInt(metadataLastModified, 10) || lastModified,
-      type: metadataType,
-      size: parseInt(headers.get('content-length') || '0', 10),
+      name,
+      lastModified,
+      type,
+      size: parseInt(headers.get('content-length') || '0'),
     };
   }
 
@@ -308,9 +311,6 @@ export class S3FileStorage implements FileStorage {
       type,
       size
     } = this.extractMetadata(key, initial.headers);
-    
-    // Try to get the file name from metadata
-    const fileName = name || key.split('/').pop() || key;
 
     // Store AWS client and key in variables that can be captured by the closure
     const aws = this.aws;
@@ -369,7 +369,7 @@ export class S3FileStorage implements FileStorage {
     
     return new LazyFile(
       lazyContent,
-      fileName,
+      name,
       {
         type,
         lastModified
