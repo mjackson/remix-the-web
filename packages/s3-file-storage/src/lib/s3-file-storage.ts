@@ -59,7 +59,7 @@ export class S3FileStorage implements FileStorage {
     this.region = options.region || 'us-east-1';
     this.endpoint = options.endpoint || `https://${this.bucket}.s3.${this.region}.amazonaws.com`;
     
-    if (options.forcePathStyle !== undefined) {
+    if (options.forcePathStyle) {
       this.forcePathStyle = !!options.forcePathStyle
     } else {
       // This is how the official s3 client determines if it should use path style or virtual hosted style
@@ -107,7 +107,6 @@ export class S3FileStorage implements FileStorage {
     const metadataHeaders = {
       'Content-Type': file.type,
       'x-amz-meta-name': file.name,
-      'x-amz-meta-type': file.type,
       'x-amz-meta-lastModified': file.lastModified.toString(),
     };
 
@@ -279,7 +278,7 @@ export class S3FileStorage implements FileStorage {
     if (!name) {
       name = key.split('/').pop() || key;
     }
-    const type = headers.get('x-amz-meta-type') || headers.get('content-type') || '';
+    const type = headers.get('content-type') || '';
     
     return {
       key,

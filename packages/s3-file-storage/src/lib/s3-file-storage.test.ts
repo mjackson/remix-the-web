@@ -145,7 +145,6 @@ describe('S3FileStorage', () => {
           // Verify headers
           assert.equal(request.headers.get('content-type'), 'text/plain');
           assert.equal(request.headers.get('x-amz-meta-name'), 'test.txt');
-          assert.equal(request.headers.get('x-amz-meta-type'), 'text/plain');
           
           return xmlResponse(`
             <InitiateMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
@@ -363,7 +362,6 @@ describe('S3FileStorage', () => {
             'content-type': 'text/plain',
             'last-modified': new Date(lastModified).toUTCString(),
             'x-amz-meta-name': 'test.txt',
-            'x-amz-meta-type': 'text/plain',
             'x-amz-meta-lastModified': lastModified.toString()
           }
         });
@@ -401,7 +399,6 @@ describe('S3FileStorage', () => {
               'content-type': 'text/plain',
               'last-modified': new Date(lastModified).toUTCString(),
               'x-amz-meta-name': 'test.txt',
-              'x-amz-meta-type': 'text/plain',
               'x-amz-meta-lastModified': lastModified.toString()
             }
           });
@@ -668,7 +665,6 @@ describe('S3FileStorage', () => {
               'content-type': 'text/plain',
               'last-modified': new Date('1999-12-31T23:59:59Z').toUTCString(),
               'x-amz-meta-name': 'test.txt',
-              'x-amz-meta-type': 'text/plain',
               'x-amz-meta-lastModified': '1672531200000'
             }
           });
@@ -724,7 +720,6 @@ describe('S3FileStorage', () => {
               'content-length': '13',
               'content-type': 'text/plain',
               'x-amz-meta-name': 'test.txt',
-              'x-amz-meta-type': 'text/plain',
               'x-amz-meta-lastModified': '946684799000'
             }
           });
