@@ -42,6 +42,7 @@ export class S3FileStorage implements FileStorage {
   private readonly endpoint: string;
   private readonly region: string;
   private readonly forcePathStyle: boolean;
+  private readonly bucketUrl: string;
   
   /**
    * Creates a new S3FileStorage instance.
@@ -59,32 +60,27 @@ export class S3FileStorage implements FileStorage {
     this.region = options.region || 'us-east-1';
     this.endpoint = options.endpoint || `https://${this.bucket}.s3.${this.region}.amazonaws.com`;
     
-    if (typeof options.forcePathStyle === 'boolean') {
+    // This is how the official s3 client determines if it should use path style or virtual hosted style
+    // https://github.com/aws/aws-sdk-js-v3/blob/d1501040077b937ef23e591238cda4bbe729c721/lib/lib-storage/src/Upload.ts#L172-L183
+    if (options.forcePathStyle) {
       this.forcePathStyle = options.forcePathStyle
     } else {
-      // This is how the official s3 client determines if it should use path style or virtual hosted style
-      // https://github.com/aws/aws-sdk-js-v3/blob/d1501040077b937ef23e591238cda4bbe729c721/lib/lib-storage/src/Upload.ts#L172-L183
       const endpointHostnameIncludesBucket = new URL(this.endpoint).hostname.startsWith(this.bucket + '.')
       this.forcePathStyle = !endpointHostnameIncludesBucket
     }
-  }
 
-  /**
-   * Returns the URL for the S3 bucket.
-   * If `forcePathStyle` is true, the bucket name is included in the URL.
-   */
-  private getBucketUrl(): string {
     if (this.forcePathStyle) {
-      return `${this.endpoint}/${this.bucket}`;
+      this.bucketUrl = `${this.endpoint}/${this.bucket}`;
+    } else {
+      this.bucketUrl = this.endpoint;
     }
-    return this.endpoint;
   }
   
   /**
    * Returns the URL for the given key in the S3 bucket.
    */
   private getObjectUrl(key: string): string {
-    return `${this.getBucketUrl()}/${encodeURIComponent(key)}`;
+    return `${this.bucketUrl}/${encodeURIComponent(key)}`;
   }
 
   /**
@@ -414,7 +410,7 @@ export class S3FileStorage implements FileStorage {
       params.set('continuation-token', cursor);
     }
     
-    const url = `${this.getBucketUrl()}?${params.toString()}`;
+    const url = `${this.bucketUrl}?${params.toString()}`;
     
     const response = await this.aws.fetch(url, {
       method: 'GET',
