@@ -29,6 +29,12 @@ export interface S3FileStorageOptions extends Omit<AwsClientInit, 'service'> {
    * When true, force a path-style endpoint to be used where the bucket name is part of the path. Defaults to false.
    */
   forcePathStyle?: boolean;
+
+  /**
+   * Eagerly load the file when calling `get()`. Defaults to false.
+   * If true, the file will be retrieved with a GET request immediately.
+   */
+  eager?: boolean;
 }
 
 /**
@@ -43,6 +49,7 @@ export class S3FileStorage implements FileStorage {
   private readonly region: string;
   private readonly forcePathStyle: boolean;
   private readonly bucketUrl: string;
+  private readonly eager: boolean;
   
   /**
    * Creates a new S3FileStorage instance.
@@ -74,6 +81,8 @@ export class S3FileStorage implements FileStorage {
     } else {
       this.bucketUrl = this.endpoint;
     }
+
+    this.eager = options.eager || false;
   }
   
   /**
@@ -290,6 +299,10 @@ export class S3FileStorage implements FileStorage {
    * Uses a HEAD request to get metadata and creates a LazyFile that will only fetch the content when needed.
    */
   async get(key: string): Promise<File | null> {
+    return this.eager ? this.getEager(key) : this.getLazy(key);
+  }
+
+  private async getEager(key: string): Promise<LazyFile | null> {
     const objectUrl = this.getObjectUrl(key);
 
     const initial = await this.aws.fetch(objectUrl, {
@@ -368,6 +381,91 @@ export class S3FileStorage implements FileStorage {
       {
         type,
         lastModified
+      }
+    );
+  }
+
+  private async getLazy(key: string): Promise<File | null> {
+    // First do a HEAD request to get metadata without downloading the file
+    const headResponse = await this.aws.fetch(this.getObjectUrl(key), {
+      method: 'HEAD',
+    });
+    
+    if (!headResponse.ok) {
+      return null;
+    }
+
+    const contentLength = headResponse.headers.get('content-length');
+    const contentType = headResponse.headers.get('content-type') || '';
+    const lastModifiedHeader = headResponse.headers.get('last-modified');
+    const lastModified = lastModifiedHeader ? new Date(lastModifiedHeader).getTime() : Date.now();
+    
+    // Try to get the file name from metadata
+    let fileName = key.split('/').pop() || key;
+    
+    const metadataName = headResponse.headers.get('x-amz-meta-name');
+    const metadataLastModified = headResponse.headers.get('x-amz-meta-lastModified');
+    const metadataType = headResponse.headers.get('x-amz-meta-type');
+    
+    if (metadataName) {
+      fileName = metadataName;
+    }
+
+    // Store AWS client and key in variables that can be captured by the closure
+    const aws = this.aws;
+    const objectUrl = this.getObjectUrl(key);
+    
+    // Create LazyContent implementation that will fetch the file only when needed
+    const lazyContent: LazyContent = {
+      byteLength: contentLength ? parseInt(contentLength, 10) : 0,
+      stream(start?: number, end?: number): ReadableStream<Uint8Array> {
+        return new ReadableStream({
+          async start(controller) {
+            const headers: Record<string, string> = {};
+            if (start !== undefined || end !== undefined) {
+
+              // it's valid to pass a start without an end
+              let range = `bytes=${start ?? 0}-`;
+              if (end !== undefined) {
+                range += (end - 1);
+              }
+
+              headers['Range'] = range;
+            }
+
+            try {
+              const response = await aws.fetch(objectUrl, {
+                method: 'GET',
+                headers
+              });
+
+              if (!response.ok) {
+                throw new Error(`Failed to fetch file: ${response.statusText}`);
+              }
+
+              const reader = response.body!.getReader();
+              
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                controller.enqueue(value);
+              }
+              
+              controller.close();
+            } catch (error) {
+              controller.error(error);
+            }
+          }
+        });
+      }
+    };
+    
+    return new LazyFile(
+      lazyContent,
+      fileName,
+      {
+        type: metadataType || contentType,
+        lastModified: metadataLastModified ? parseInt(metadataLastModified, 10) : lastModified
       }
     );
   }

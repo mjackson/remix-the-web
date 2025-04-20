@@ -13,6 +13,7 @@ const TEST_ENDPOINT = 'http://localhost:9000';
 
 describe('S3FileStorage', () => {
   let storage: S3FileStorage;
+  let eagerStorage: S3FileStorage;
   let originalFetch: typeof fetch;
 
   beforeEach(() => {
@@ -26,6 +27,16 @@ describe('S3FileStorage', () => {
       bucket: TEST_BUCKET,
       endpoint: TEST_ENDPOINT,
       forcePathStyle: true,
+    });
+
+    eagerStorage = new S3FileStorage({
+      accessKeyId: TEST_ACCESS_KEY,
+      secretAccessKey: TEST_SECRET_KEY,
+      region: TEST_REGION,
+      bucket: TEST_BUCKET,
+      endpoint: TEST_ENDPOINT,
+      forcePathStyle: true,
+      eager: true
     });
   });
 
@@ -339,7 +350,7 @@ describe('S3FileStorage', () => {
       globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
         const request = new Request(input, init);
         assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/nonexistent`);
-        assert.equal(request.method, 'GET');
+        assert.equal(request.method, 'HEAD');
         return new Response(null, { status: 404 });
       };
 
@@ -348,6 +359,64 @@ describe('S3FileStorage', () => {
     });
 
     it('creates a File with correct metadata from headers', async () => {
+      const lastModified = new Date('1999-12-31T23:59:59Z').getTime();
+      
+      let callIndex = -1;
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        callIndex++;
+        const request = new Request(input, init);
+        
+        if (callIndex === 0) {
+          // First request: HEAD request to get metadata
+          assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`);
+          assert.equal(request.method, 'HEAD');
+          
+          return new Response(null, { 
+            status: 200,
+            headers: {
+              'content-length': '13',
+              'content-type': 'text/plain',
+              'last-modified': new Date(lastModified).toUTCString(),
+              'x-amz-meta-name': 'test.txt',
+              'x-amz-meta-type': 'text/plain',
+              'x-amz-meta-lastModified': lastModified.toString()
+            }
+          });
+        }
+        
+        if (callIndex === 1) {
+          // Second request: GET request for the content
+          assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`);
+          assert.equal(request.method, 'GET');
+          
+          return new Response('Hello, world!', { 
+            status: 200,
+            headers: {
+              'content-type': 'text/plain',
+              'content-length': '13'
+            }
+          });
+        }
+        
+        throw new Error(`Unexpected request #${callIndex + 1}: ${request.method} ${request.url}`);
+      };
+
+      const file = await storage.get('testfile');
+      assert.ok(file instanceof File);
+      assert.equal(file!.name, 'test.txt');
+      assert.equal(file!.type, 'text/plain');
+      assert.equal(file!.size, 13);
+      assert.equal(file!.lastModified, lastModified);
+      
+      // Check that the content is correctly loaded
+      const content = await file!.text();
+      assert.equal(content, 'Hello, world!');
+      
+      // Verify both expected requests were made
+      assert.equal(callIndex, 1, `Expected 2 requests, but got ${callIndex + 1}`);
+    });
+
+    it('creates a File with correct metadata from headers using eager', async () => {
       const lastModified = new Date('1999-12-31T23:59:59Z').getTime();
       
       globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -367,7 +436,7 @@ describe('S3FileStorage', () => {
         });
       };
 
-      const file = await storage.get('testfile');
+      const file = await eagerStorage.get('testfile');
       assert.ok(file instanceof File);
       assert.equal(file!.name, 'test.txt');
       assert.equal(file!.type, 'text/plain');
@@ -390,7 +459,7 @@ describe('S3FileStorage', () => {
         if (callIndex === 0) {
           // First request: GET request without range header
           assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`);
-          assert.equal(request.method, 'GET');
+          assert.equal(request.method, 'HEAD');
           
           return new Response('Hello, world!', { 
             status: 200,
@@ -712,17 +781,26 @@ describe('S3FileStorage', () => {
         if (callIndex === 1) {
           // Second request: HEAD request to get metadata
           assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`);
-          assert.equal(request.method, 'GET');
+          assert.equal(request.method, 'HEAD');
           
-          return new Response('Hello, world!', { 
+          return new Response(null, { 
             status: 200,
             headers: {
               'content-length': '13',
               'content-type': 'text/plain',
               'x-amz-meta-name': 'test.txt',
+              'x-amz-meta-type': 'text/plain',
               'x-amz-meta-lastModified': '946684799000'
             }
           });
+        }
+        
+        if (callIndex === 2) {
+          // Third request: GET request to get content
+          assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`);
+          assert.equal(request.method, 'GET');
+          
+          return new Response('Hello, world!', { status: 200 });
         }
         
         throw new Error(`Unexpected request #${callIndex + 1}: ${request.method} ${request.url}`);
@@ -743,6 +821,62 @@ describe('S3FileStorage', () => {
       const content = await result.text();
       assert.equal(content, 'Hello, world!');
       
+      // Verify all expected requests were made
+      assert.equal(callIndex, 2, `Expected 3 requests, but got ${callIndex + 1}`);
+    });
+
+    it('sets and gets a file in one operation using eager', async () => {
+      let callIndex = -1;
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        callIndex++;
+        const request = new Request(input, init);
+
+        if (callIndex === 0) {
+          // First request: PUT request to upload the file
+          assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`);
+          assert.equal(request.method, 'PUT');
+
+          // Verify the body content
+          const bodyText = await request.text();
+          assert.equal(bodyText, 'Hello, world!');
+
+          return new Response(null, { status: 200 });
+        }
+
+        if (callIndex === 1) {
+          // Second request: HEAD request to get metadata
+          assert.equal(request.url, `${TEST_ENDPOINT}/${TEST_BUCKET}/testfile`);
+          assert.equal(request.method, 'GET');
+
+          return new Response('Hello, world!', { 
+            status: 200,
+            headers: {
+              'content-length': '13',
+              'content-type': 'text/plain',
+              'x-amz-meta-name': 'test.txt',
+              'x-amz-meta-lastModified': '946684799000'
+            }
+          });
+        }
+
+        throw new Error(`Unexpected request #${callIndex + 1}: ${request.method} ${request.url}`);
+      };
+
+      const testFile = new File(['Hello, world!'], 'test.txt', { 
+        type: 'text/plain',
+        lastModified: new Date('1999-12-31T23:59:59Z').getTime()
+      });
+
+      const result = await eagerStorage.put('testfile', testFile);
+      assert.ok(result instanceof File);
+      assert.equal(result.name, 'test.txt');
+      assert.equal(result.type, 'text/plain');
+      assert.equal(result.lastModified, new Date('1999-12-31T23:59:59Z').getTime());
+
+      // Verify content
+      const content = await result.text();
+      assert.equal(content, 'Hello, world!');
+
       // Verify all expected requests were made
       assert.equal(callIndex, 1, `Expected 2 requests, but got ${callIndex + 1}`);
     });

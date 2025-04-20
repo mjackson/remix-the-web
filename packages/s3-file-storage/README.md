@@ -30,6 +30,7 @@ let storage = new S3FileStorage({
   bucket: 'your-bucket-name',
   endpoint: 'https://your-s3-endpoint', // Optional for S3-compatible services
   forcePathStyle: true, // Optional, defaults to false
+  eager: false, // Optional, defaults to false. Causes get and put to fetch immediately
 });
 
 let file = new File(['hello world'], 'hello.txt', { type: 'text/plain' });
