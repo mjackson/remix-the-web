@@ -1,0 +1,126 @@
+import { RoutePattern } from '../route-pattern.ts';
+import { type Node, type RouteVariant, createTree } from './tree.ts';
+import { split } from '../utils/split.ts';
+
+export const matcher = (patterns: Array<RoutePattern | string>) => {
+  const tree = createTree(
+    patterns.map((pattern) =>
+      typeof pattern === 'string' ? RoutePattern.parse(pattern) : pattern,
+    ),
+  );
+  return (url: string) => match(tree, toURL(url));
+};
+
+type URL = Array<{
+  type: 'protocol' | 'hostname' | 'pathname';
+  segment: string;
+}>;
+
+type StateItem = {
+  paramValues?: Array<string>;
+
+  node: Node; // convenience
+  /**
+   * For backtracking
+   *
+   * undefined -> processing the static match (there can only be one of these)
+   * 0 - dynamic children length -> should start up again at the i-th dynamic child
+   * beyond that -> done! (or glob but this isn't implemented yet)
+   */
+  bookmark?: number;
+};
+type State = Array<StateItem>;
+
+type MatchResult = {
+  pattern: RoutePattern;
+  variant: RouteVariant;
+  params: Params;
+};
+
+function backtrack(state: State) {
+  state.pop();
+  const parent = state.at(-1);
+  if (parent) {
+    parent.bookmark = parent.bookmark === undefined ? 0 : parent.bookmark + 1;
+  }
+}
+
+function toURL(url: string): URL {
+  const parts = split(url);
+  const protocol = parts.protocol!;
+  const hostname = parts.hostname!.split('.').reverse();
+  const pathname = parts.pathname!.split('/');
+
+  return [
+    { type: 'protocol', segment: protocol },
+    ...hostname.map((segment) => ({ type: 'hostname' as const, segment })),
+    ...pathname.map((segment) => ({ type: 'pathname' as const, segment })),
+  ];
+}
+
+function* match(tree: Node, url: URL): Generator<MatchResult, undefined> {
+  const state: State = [{ node: tree }];
+
+  outer: while (state.length > 0) {
+    const current = state.at(-1)!;
+    const currentIndex = state.length + 1;
+
+    if (currentIndex === url.length) {
+      const { route } = current.node;
+      if (route) {
+        const paramValues = state.flatMap((item) => item.paramValues ?? []);
+        const params = getParams(route.variant.paramSlots, paramValues);
+        yield { ...route, params };
+      }
+      backtrack(state);
+      continue;
+    }
+
+    const { type, segment } = url[currentIndex];
+    const children = current.node[type];
+
+    // static
+    if (current.bookmark === undefined) {
+      const child = children.static.get(segment);
+      if (child) {
+        state.push({ node: child });
+        continue;
+      }
+      current.bookmark = 0;
+    }
+
+    // dynamic
+    for (let i = current.bookmark; i < children.dynamicOrder.length; i++) {
+      const [key, regex] = children.dynamicOrder[i];
+      const match = regex.exec(segment);
+      if (!match) continue;
+
+      const child = children.dynamic.get(key)!;
+      state.push({
+        node: child,
+        paramValues: match.slice(1),
+      });
+      current.bookmark = i;
+      continue outer;
+    }
+
+    // todo: glob
+
+    backtrack(state);
+  }
+}
+
+type Params = Record<string, Array<string | undefined>>;
+function getParams(paramSlots: Array<[string, boolean]>, paramValues: Array<string>): Params {
+  const params: Params = {};
+  let i = 0;
+  for (const [name, isDefined] of paramSlots) {
+    params[name] ??= [];
+    if (isDefined) {
+      params[name].push(paramValues[i++]);
+    } else {
+      params[name].push(undefined);
+    }
+  }
+  return params;
+}
