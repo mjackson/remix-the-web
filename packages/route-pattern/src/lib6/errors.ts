@@ -18,8 +18,9 @@ export class ParseError extends Error {
     this.span = span;
   }
 
-  offset(index: number) {
+  offset(index: number): ParseError {
     this.span = [index + this.span[0], index + this.span[1]];
+    return this;
   }
 
   // todo nice error message

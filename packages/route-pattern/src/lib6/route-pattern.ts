@@ -81,19 +81,21 @@ export class RoutePattern {
     const hostname = other.#hostname ?? this.#hostname;
 
     // pathname
-    let pathnameSource: string | undefined = this.#pathname?.source;
+    let pathnameSource: string = '';
+    if (this.#pathname) {
+      pathnameSource += this.#pathname.source;
+    }
     if (other.#pathname) {
       if (pathnameSource) pathnameSource += '/';
       pathnameSource += other.#pathname.source;
     }
-    const pathname = pathnameSource ? PartPattern.parse(pathnameSource) : undefined;
+    const pathname = pathnameSource !== '' ? PartPattern.parse(pathnameSource) : undefined;
     if (pathname instanceof ParseError) {
       let offset = 0;
       if (protocol) offset += protocol.source.length;
       // `://<hostname>/`
       if (hostname) offset += 3 + hostname.source.length + 1;
-      pathname.offset(offset);
-      throw pathname;
+      throw pathname.offset(offset);
     }
 
     return new RoutePattern({
@@ -108,8 +110,7 @@ export class RoutePattern {
 function parseProtocol(source: string, span: Span) {
   const parsed = PartPattern.parse(source.slice(...span));
   if (parsed instanceof ParseError) {
-    parsed.offset(span[0]);
-    throw parsed;
+    throw parsed.offset(span[0]);
   }
   parsed.traverse({
     param: (node) => {
@@ -125,8 +126,7 @@ function parseProtocol(source: string, span: Span) {
 function parseHostname(source: string, span: Span) {
   const parsed = PartPattern.parse(source.slice(...span));
   if (parsed instanceof ParseError) {
-    parsed.offset(span[0]);
-    throw parsed;
+    throw parsed.offset(span[0]);
   }
   parsed.traverse({
     glob: (node, path) => {
@@ -134,10 +134,14 @@ function parseHostname(source: string, span: Span) {
       if (optional) {
         if (optional.node.items.length === 1) throw new Error('todo no (*)');
         const isAtStart = optional.index === 0;
-        if (!isAtStart) throw new ParseError('glob-not-at-start-of-hostname', node.span);
+        if (!isAtStart) {
+          throw new ParseError('glob-not-at-start-of-hostname', node.span).offset(span[0]);
+        }
       }
       const isAtStart = ast.index === 0;
-      if (!isAtStart) throw new ParseError('glob-not-at-start-of-hostname', node.span);
+      if (!isAtStart) {
+        throw new ParseError('glob-not-at-start-of-hostname', node.span).offset(span[0]);
+      }
     },
   });
   return parsed;
@@ -146,8 +150,7 @@ function parseHostname(source: string, span: Span) {
 function parsePathname(source: string, span: Span) {
   const parsed = PartPattern.parse(source.slice(...span));
   if (parsed instanceof ParseError) {
-    parsed.offset(span[0]);
-    throw parsed;
+    throw parsed.offset(span[0]);
   }
   parsed.traverse({
     glob: (node, path) => {
@@ -155,10 +158,14 @@ function parsePathname(source: string, span: Span) {
       if (optional) {
         if (optional.node.items.length === 1) throw new Error('todo no (*)');
         const isAtEnd = optional.index === optional.node.items.length - 1;
-        if (!isAtEnd) throw new ParseError('glob-not-at-end-of-pathname', node.span);
+        if (!isAtEnd) {
+          throw new ParseError('glob-not-at-end-of-pathname', node.span).offset(span[0]);
+        }
       }
       const isAtEnd = ast.index === ast.node.length - 1;
-      if (!isAtEnd) throw new ParseError('glob-not-at-end-of-pathname', node.span);
+      if (!isAtEnd) {
+        throw new ParseError('glob-not-at-end-of-pathname', node.span).offset(span[0]);
+      }
     },
   });
   return parsed;
