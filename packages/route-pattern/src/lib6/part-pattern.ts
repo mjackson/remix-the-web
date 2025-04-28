@@ -1,4 +1,4 @@
-import { ParseError } from './errors.ts';
+import { ParseError } from './parse-error.ts';
 
 type Span = [number, number];
 type Param = { type: 'param'; name: string; span: Span };
@@ -12,7 +12,7 @@ type Path =
   | [{ node: Ast; index: number }, { node: Optional; index: number }];
 
 type Slots = Array<[string, boolean]>;
-export type Variant = {
+export type PartVariant = {
   source: string;
   paramSlots: Slots;
   globSlots: Slots;
@@ -122,7 +122,7 @@ export class PartPattern {
     }
   }
 
-  *variants(): Generator<Variant> {
+  *variants(): Generator<PartVariant> {
     let numOptionals = 0;
     this.traverse({
       optionalOpen: () => (numOptionals += 1),
@@ -130,8 +130,8 @@ export class PartPattern {
 
     const max = 2 ** numOptionals;
     for (let state = 0; state < max; state++) {
-      const paramSlots: Variant['paramSlots'] = [];
-      const globSlots: Variant['globSlots'] = [];
+      const paramSlots: PartVariant['paramSlots'] = [];
+      const globSlots: PartVariant['globSlots'] = [];
 
       let optionalIndex = 0;
       const shouldInclude = (path: Path) => {

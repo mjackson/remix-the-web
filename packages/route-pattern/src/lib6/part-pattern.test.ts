@@ -2,7 +2,7 @@ import * as assert from 'node:assert';
 import { describe, it } from 'node:test';
 
 import { PartPattern } from './part-pattern.ts';
-import { ParseError } from './errors.ts';
+import { ParseError } from './parse-error.ts';
 
 describe('PartPattern', () => {
   describe('parse', () => {

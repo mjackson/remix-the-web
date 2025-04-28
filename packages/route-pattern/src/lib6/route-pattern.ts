@@ -1,5 +1,5 @@
-import { ParseError } from './errors.ts';
-import { PartPattern } from './part-pattern.ts';
+import { ParseError } from './parse-error.ts';
+import { PartPattern, type PartVariant } from './part-pattern.ts';
 import { splitIntoSpans, type Span } from './utils/split.ts';
 
 type Parts = {
@@ -9,12 +9,17 @@ type Parts = {
   search?: string;
 };
 
+export type RouteVariant = {
+  protocol?: string;
+  hostname?: PartVariant;
+  pathname?: PartVariant;
+};
+
 export class RoutePattern {
   #protocol?: PartPattern;
   #hostname?: PartPattern;
   #pathname?: PartPattern;
   #search?: string;
-  #source?: string;
 
   private constructor({ protocol, hostname, pathname, search }: Parts) {
     this.#protocol = protocol;
@@ -34,46 +39,33 @@ export class RoutePattern {
     });
   }
 
-  get protocol(): string | undefined {
-    return this.#protocol?.source;
+  get protocol(): string {
+    return this.#protocol?.source ?? '';
   }
 
-  get hostname(): string | undefined {
-    return this.#hostname?.source;
+  get hostname(): string {
+    return this.#hostname?.source ?? '';
   }
 
-  get pathname(): string | undefined {
-    return this.#pathname?.source;
+  get pathname(): string {
+    const source = this.#pathname?.source;
+    if (source === undefined) return '/';
+    return '/' + source;
   }
 
-  get search(): string | undefined {
-    return this.#search;
+  get search(): string {
+    return this.#search ?? '';
   }
 
   get source(): string {
-    if (this.#source === undefined) {
-      let source = '';
-      if (this.#hostname) {
-        if (this.#protocol) {
-          source += this.#protocol.source;
-        }
-        source += '://';
-        source += this.#hostname.source;
-
-        if (this.#pathname) {
-          source += '/';
-        }
-      }
-      if (this.#pathname) {
-        source += this.#pathname.source;
-      }
-      if (this.#search) {
-        source += '?';
-        source += this.#search;
-      }
-      this.#source = source;
+    if (this.protocol !== '' || this.hostname !== '') {
+      return this.protocol + '://' + this.hostname + this.pathname + this.search;
     }
-    return this.#source;
+    return this.pathname + this.search;
+  }
+
+  toString() {
+    return `RoutePattern[${this.source}]`;
   }
 
   join(other: RoutePattern): RoutePattern {
@@ -104,6 +96,20 @@ export class RoutePattern {
       pathname,
       search: other.#search ?? this.#search, // todo
     });
+  }
+
+  *variants(): Generator<RouteVariant> {
+    for (const protocol of this.#protocol?.variants() ?? [undefined]) {
+      for (const hostname of this.#hostname?.variants() ?? [undefined]) {
+        for (const pathname of this.#pathname?.variants() ?? [undefined]) {
+          yield {
+            protocol: protocol?.source,
+            hostname,
+            pathname,
+          };
+        }
+      }
+    }
   }
 }
 

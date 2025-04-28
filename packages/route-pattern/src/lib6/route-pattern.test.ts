@@ -2,7 +2,7 @@ import * as assert from 'node:assert';
 import { describe, it } from 'node:test';
 
 import { RoutePattern } from './route-pattern.ts';
-import { ParseError } from './errors.ts';
+import { ParseError } from './parse-error.ts';
 
 describe('RoutePattern', () => {
   describe('parse', () => {
@@ -117,7 +117,7 @@ describe('RoutePattern', () => {
       {
         pattern1: 'products/:id',
         pattern2: 'users/:username',
-        expected: 'products/:id/users/:username',
+        expected: '/products/:id/users/:username',
       },
       {
         pattern1: 'products/:id',
@@ -142,7 +142,7 @@ describe('RoutePattern', () => {
       {
         pattern1: '://unpkg.com',
         pattern2: '://remix.run',
-        expected: '://remix.run',
+        expected: '://remix.run/',
       },
       {
         pattern1: '://unpkg.com',

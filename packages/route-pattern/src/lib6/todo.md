@@ -1,1 +1,3 @@
-- route patterns have part spans + parts
+## todo
+
+- [ ] glob mixed with static or param?
