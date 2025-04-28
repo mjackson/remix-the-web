@@ -145,4 +145,24 @@ describe('fetch proxy', () => {
     assert.equal(setCookie[0], 'name=value; Domain=remix.run:3000; Path=/rsc/search');
     assert.equal(setCookie[1], 'name2=value2; Domain=remix.run:3000; Path=/rsc');
   });
+
+  it('deletes content-encoding and content-length headers', async () => {
+    let { response } = await runProxy(
+      new Request('http://shopify.com/search?q=remix'),
+      'https://remix.run:3000/rsc',
+      {
+        async fetch() {
+          return new Response(null, {
+            headers: [
+              ['Content-Encoding', 'gzip'],
+              ['Content-Length', '1337'],
+            ],
+          });
+        },
+      },
+    );
+
+    assert.equal(response.headers.has('Content-Encoding'), false);
+    assert.equal(response.headers.has('Content-Length'), false);
+  });
 });

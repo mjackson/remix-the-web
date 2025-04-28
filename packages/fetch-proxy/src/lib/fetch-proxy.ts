@@ -104,6 +104,9 @@ export function createFetchProxy(target: string | URL, options?: FetchProxyOptio
       }
     }
 
+    responseHeaders.delete('Content-Encoding');
+    responseHeaders.delete('Content-Length');
+
     return new Response(targetResponse.body, {
       status: targetResponse.status,
       statusText: targetResponse.statusText,
