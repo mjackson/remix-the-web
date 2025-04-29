@@ -7,6 +7,7 @@ async function runProxy(
   request: Request,
   target: string | URL,
   options?: FetchProxyOptions,
+  init?: RequestInit,
 ): Promise<{ request: Request; response: Response }> {
   let outgoingRequest: Request;
   let proxy = createFetchProxy(target, {
@@ -17,7 +18,7 @@ async function runProxy(
     },
   });
 
-  let proxyResponse = await proxy(request);
+  let proxyResponse = await proxy(request, init);
 
   assert.ok(outgoingRequest!);
 
@@ -164,5 +165,23 @@ describe('fetch proxy', () => {
 
     assert.equal(response.headers.has('Content-Encoding'), false);
     assert.equal(response.headers.has('Content-Length'), false);
+  });
+
+  it('applies RequestInit properties to the proxied request', async () => {
+    let { request } = await runProxy(
+      new Request('http://shopify.com/search?q=remix', {
+        redirect: 'manual',
+        referrer: 'http://example.com/referer',
+      }),
+      'https://remix.run:3000/rsc',
+      undefined,
+      {
+        redirect: 'manual',
+        referrer: 'http://example.com/referer',
+      },
+    );
+
+    assert.equal(request.redirect, 'manual');
+    assert.equal(request.referrer, 'http://example.com/referer');
   });
 });
