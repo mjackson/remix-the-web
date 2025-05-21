@@ -298,21 +298,30 @@ export class S3FileStorage implements FileStorage {
 
   /**
    * Returns the file with the given key, or `null` if no such key exists.
-   * Uses a HEAD request to get metadata and creates a LazyFile that will only fetch the content when needed.
+   * If `eager` is true, the file content is fetched immediately.
+   * Otherwise, a HEAD request is used to get metadata, and a LazyFile is created
+   * that will only fetch the content when its stream is accessed.
    */
   async get(key: string): Promise<File | null> {
-    return this.eager ? this.getEager(key) : this.getLazy(key);
-  }
-
-  private async getEager(key: string): Promise<LazyFile | null> {
     const objectUrl = this.getObjectUrl(key);
+    let initialResponse: Response | null = null;
+    let responseHeaders: Headers;
 
-    const initial = await this.aws.fetch(objectUrl, {
-      method: 'GET',
-    });
-    
-    if (!initial.ok) {
-      return null;
+    if (this.eager) {
+      const eagerResponse = await this.aws.fetch(objectUrl, { method: 'GET' });
+      if (!eagerResponse.ok) {
+        if (eagerResponse.status === 404) return null;
+        throw new Error(`Failed to get file: ${eagerResponse.statusText}`);
+      }
+      initialResponse = eagerResponse;
+      responseHeaders = initialResponse.headers;
+    } else {
+      const lazyResponse = await this.aws.fetch(objectUrl, { method: 'HEAD' });
+      if (!lazyResponse.ok) {
+        if (lazyResponse.status === 404) return null;
+        throw new Error(`Failed to get file metadata: ${lazyResponse.statusText}`);
+      }
+      responseHeaders = lazyResponse.headers;
     }
 
     const {
@@ -320,12 +329,11 @@ export class S3FileStorage implements FileStorage {
       lastModified,
       type,
       size
-    } = this.extractMetadata(key, initial.headers);
+    } = this.extractMetadata(key, responseHeaders);
 
-    // Store AWS client and key in variables that can be captured by the closure
+    // Store AWS client in a variable that can be captured by the closure
     const aws = this.aws;
     
-    // Create LazyContent implementation that will fetch the file only when needed
     const lazyContent: LazyContent = {
       byteLength: size,
       stream(start?: number, end?: number): ReadableStream<Uint8Array> {
@@ -333,33 +341,34 @@ export class S3FileStorage implements FileStorage {
           async start(controller) {
             const headers: Record<string, string> = {};
             if (start !== undefined || end !== undefined) {
-
-              // it's valid to pass a start without an end
               let range = `bytes=${start ?? 0}-`;
               if (end !== undefined) {
+                // Range header is inclusive, so subtract 1 from end if specified
                 range += (end - 1);
               }
-
               headers['Range'] = range;
             }
 
             try {
               let reader: ReadableStreamDefaultReader<Uint8Array>;
-              if (!headers['Range'] && !initial.bodyUsed) {
-                // If no range is specified and the body has not been used, we can use the initial response's body
-                reader = initial.body!.getReader();
-
+              // If eager loading provided an initial response, no range is requested,
+              // and its body hasn't been used, we can use its body.
+              if (!headers['Range'] && initialResponse?.body && !initialResponse.bodyUsed) {
+                reader = initialResponse.body.getReader();
               } else {
+                // Otherwise, fetch the content (or range)
                 const response = await aws.fetch(objectUrl, {
                   method: 'GET',
                   headers
                 });
 
                 if (!response.ok) {
-                  throw new Error(`Failed to fetch file: ${response.statusText}`);
+                  throw new Error(`Failed to fetch file content: ${response.statusText}`);
                 }
-
-                reader = response.body!.getReader();
+                if (!response.body) {
+                  throw new Error('Response body is null');
+                }
+                reader = response.body.getReader();
               }
               
               while (true) {
@@ -387,91 +396,6 @@ export class S3FileStorage implements FileStorage {
     );
   }
 
-  private async getLazy(key: string): Promise<File | null> {
-    // First do a HEAD request to get metadata without downloading the file
-    const headResponse = await this.aws.fetch(this.getObjectUrl(key), {
-      method: 'HEAD',
-    });
-    
-    if (!headResponse.ok) {
-      return null;
-    }
-
-    const contentLength = headResponse.headers.get('content-length');
-    const contentType = headResponse.headers.get('content-type') || '';
-    const lastModifiedHeader = headResponse.headers.get('last-modified');
-    const lastModified = lastModifiedHeader ? new Date(lastModifiedHeader).getTime() : Date.now();
-    
-    // Try to get the file name from metadata
-    let fileName = key.split('/').pop() || key;
-    
-    const metadataName = headResponse.headers.get('x-amz-meta-name');
-    const metadataLastModified = headResponse.headers.get('x-amz-meta-lastModified');
-    const metadataType = headResponse.headers.get('x-amz-meta-type');
-    
-    if (metadataName) {
-      fileName = decodeURI(metadataName);
-    }
-
-    // Store AWS client and key in variables that can be captured by the closure
-    const aws = this.aws;
-    const objectUrl = this.getObjectUrl(key);
-    
-    // Create LazyContent implementation that will fetch the file only when needed
-    const lazyContent: LazyContent = {
-      byteLength: contentLength ? parseInt(contentLength, 10) : 0,
-      stream(start?: number, end?: number): ReadableStream<Uint8Array> {
-        return new ReadableStream({
-          async start(controller) {
-            const headers: Record<string, string> = {};
-            if (start !== undefined || end !== undefined) {
-
-              // it's valid to pass a start without an end
-              let range = `bytes=${start ?? 0}-`;
-              if (end !== undefined) {
-                range += (end - 1);
-              }
-
-              headers['Range'] = range;
-            }
-
-            try {
-              const response = await aws.fetch(objectUrl, {
-                method: 'GET',
-                headers
-              });
-
-              if (!response.ok) {
-                throw new Error(`Failed to fetch file: ${response.statusText}`);
-              }
-
-              const reader = response.body!.getReader();
-              
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                controller.enqueue(value);
-              }
-              
-              controller.close();
-            } catch (error) {
-              controller.error(error);
-            }
-          }
-        });
-      }
-    };
-    
-    return new LazyFile(
-      lazyContent,
-      fileName,
-      {
-        type: metadataType || contentType,
-        lastModified: metadataLastModified ? parseInt(metadataLastModified, 10) : lastModified
-      }
-    );
-  }
-  
   async put(key: string, file: File): Promise<File> {
     await this.set(key, file);
     return (await this.get(key))!;
