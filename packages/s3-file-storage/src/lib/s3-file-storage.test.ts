@@ -757,6 +757,109 @@ describe('S3FileStorage', () => {
       // Verify both expected requests were made
       assert.equal(callIndex, 1, `Expected 2 requests, but got ${callIndex + 1}`);
     });
+
+    it('includes metadata for Unicode files when requested', async () => {
+      let callIndex = -1;
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        callIndex++;
+        const request = new Request(input, init);
+        
+        if (callIndex === 0) {
+          // First request: list request
+          assert.equal(request.method, 'GET');
+          assert.match(request.url, new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}\\?list-type=2`));
+          
+          return xmlResponse(`
+            <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+              <Name>${TEST_BUCKET}</Name>
+              <Prefix></Prefix>
+              <KeyCount>1</KeyCount>
+              <MaxKeys>1000</MaxKeys>
+              <IsTruncated>false</IsTruncated>
+              <Contents>
+                <Key>folder/🌟文件</Key>
+                <LastModified>1999-12-31T23:59:59.000Z</LastModified>
+                <ETag>"etag1"</ETag>
+                <Size>100</Size>
+                <StorageClass>STANDARD</StorageClass>
+              </Contents>
+            </ListBucketResult>
+          `);
+        }
+        
+        if (callIndex === 1) {
+          // Second request: HEAD request for metadata
+          assert.equal(request.method, 'HEAD');
+          const url = request.url;
+          assert.ok(url.includes('%F0%9F%8C%9F%E6%96%87%E4%BB%B6'), 'Unicode in key should be URL-encoded');
+          
+          return new Response(null, { 
+            status: 200,
+            headers: {
+              'content-length': '27',
+              'content-type': 'text/plain;charset=UTF-8',
+              'last-modified': new Date('1999-12-31T23:59:59Z').toUTCString(),
+              'x-amz-meta-name': encodeURI('你好.星.文件.txt'),
+              'x-amz-meta-lastModified': '1672531200000'
+            }
+          });
+        }
+        
+        throw new Error(`Unexpected request #${callIndex + 1}: ${request.method} ${request.url}`);
+      };
+
+      const result = await storage.list({ includeMetadata: true });
+      assert.equal(result.cursor, undefined);
+      assert.equal(result.files.length, 1);
+      
+      // Check that the file object includes metadata
+      const file = result.files[0];
+      assert.equal(file.key, 'folder/🌟文件');
+      assert.equal(file.name, '你好.星.文件.txt');
+      assert.equal(file.type, 'text/plain;charset=UTF-8');
+      assert.ok(file.lastModified);
+      assert.equal(file.size, 27);
+      
+      // Verify both expected requests were made
+      assert.equal(callIndex, 1, `Expected 2 requests, but got ${callIndex + 1}`);
+    });
+
+    it('handles Unicode keys correctly in listings', async () => {
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = new Request(input, init);
+        assert.equal(request.method, 'GET');
+        assert.match(request.url, new RegExp(`${TEST_ENDPOINT}/${TEST_BUCKET}\\?list-type=2`));
+        
+        return xmlResponse(`
+          <ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+            <Name>${TEST_BUCKET}</Name>
+            <Prefix></Prefix>
+            <KeyCount>2</KeyCount>
+            <MaxKeys>1000</MaxKeys>
+            <IsTruncated>false</IsTruncated>
+            <Contents>
+              <Key>folder/🌟文件</Key>
+              <LastModified>1999-12-31T23:59:59.000Z</LastModified>
+              <ETag>"etag1"</ETag>
+              <Size>100</Size>
+              <StorageClass>STANDARD</StorageClass>
+            </Contents>
+            <Contents>
+              <Key>你好/世界.txt</Key>
+              <LastModified>1999-12-31T23:59:59.000Z</LastModified>
+              <ETag>"etag2"</ETag>
+              <Size>200</Size>
+              <StorageClass>STANDARD</StorageClass>
+            </Contents>
+          </ListBucketResult>
+        `);
+      };
+
+      const result = await storage.list();
+      assert.equal(result.cursor, undefined);
+      assert.equal(result.files.length, 2);
+      assert.deepEqual(result.files.map(f => f.key), ['folder/🌟文件', '你好/世界.txt']);
+    });
   });
 
   describe('put()', () => {
@@ -879,6 +982,87 @@ describe('S3FileStorage', () => {
 
       // Verify all expected requests were made
       assert.equal(callIndex, 1, `Expected 2 requests, but got ${callIndex + 1}`);
+    });
+
+    it('handles Unicode filenames and keys correctly', async () => {
+      let callIndex = -1;
+      globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        callIndex++;
+        const request = new Request(input, init);
+        
+        if (callIndex === 0) {
+          // First request: PUT request to upload the file with Unicode key
+          const url = request.url;
+          // Verify URL is properly encoded
+          assert.ok(url.includes('folder%2F%F0%9F%8C%9F%E6%96%87%E4%BB%B6'), 'Unicode in key should be URL-encoded');
+          assert.equal(request.method, 'PUT');
+          
+          // Verify Unicode filename is preserved in headers
+          assert.equal(request.headers.get('x-amz-meta-name'), encodeURI('你好.星.文件.txt'));
+          
+          // Verify the body content
+          const bodyText = await request.text();
+          assert.equal(bodyText, 'Unicode content: 你好，世界！');
+          
+          return new Response(null, { status: 200 });
+        }
+        
+        if (callIndex === 1) {
+          // Second request: HEAD request to get metadata
+          const url = request.url;
+          assert.ok(url.includes('folder%2F%F0%9F%8C%9F%E6%96%87%E4%BB%B6'), 'Unicode in key should be URL-encoded');
+          assert.equal(request.method, 'HEAD');
+          
+          return new Response(null, { 
+            status: 200,
+            headers: {
+              'content-length': '35',
+              'content-type': 'text/plain;charset=UTF-8',
+              'x-amz-meta-name': encodeURI('你好.星.文件.txt'),
+              'x-amz-meta-type': 'text/plain;charset=UTF-8',
+              'x-amz-meta-lastModified': '946684799000'
+            }
+          });
+        }
+        
+        if (callIndex === 2) {
+          // Third request: GET request to get content
+          const url = request.url;
+          assert.ok(url.includes('%F0%9F%8C%9F%E6%96%87%E4%BB%B6'), 'Unicode in key should be URL-encoded');
+          assert.equal(request.method, 'GET');
+
+          return new Response('Unicode content: 你好，世界！', { 
+            status: 200,
+            headers: {
+              'content-type': 'text/plain;charset=UTF-8'
+            }
+          });
+        }
+        
+        throw new Error(`Unexpected request #${callIndex + 1}: ${request.method} ${request.url}`);
+      };
+      
+      // Create a file with Unicode filename and content
+      const testFile = new File(['Unicode content: 你好，世界！'], '你好.星.文件.txt', { 
+        type: 'text/plain;charset=utf-8',
+        lastModified: new Date('1999-12-31T23:59:59Z').getTime()
+      });
+      
+      // Store using a key with Unicode characters
+      const result = await storage.put('folder/🌟文件', testFile);
+      assert.ok(result instanceof File);
+      
+      // Verify the Unicode filename is preserved
+      assert.equal(result.name, '你好.星.文件.txt');
+      assert.equal(result.type.toLowerCase(), 'text/plain;charset=utf-8');
+      assert.equal(result.lastModified, new Date('1999-12-31T23:59:59Z').getTime());
+      
+      // Verify content with Unicode characters
+      const content = await result.text();
+      assert.equal(content, 'Unicode content: 你好，世界！');
+      
+      // Verify all expected requests were made
+      assert.equal(callIndex, 2, `Expected 3 requests, but got ${callIndex + 1}`);
     });
   });
 });

@@ -111,7 +111,7 @@ export class S3FileStorage implements FileStorage {
   async set(key: string, file: File): Promise<void> {
     const metadataHeaders = {
       'Content-Type': file.type,
-      'x-amz-meta-name': file.name,
+      'x-amz-meta-name': encodeURI(file.name),
       'x-amz-meta-lastModified': file.lastModified.toString(),
     };
 
@@ -280,7 +280,9 @@ export class S3FileStorage implements FileStorage {
     const lastModified = metadataLastModified ? parseInt(metadataLastModified) : new Date(lastModifiedHeader).getTime();
     
     let name = headers.get('x-amz-meta-name');
-    if (!name) {
+    if (name) {
+      name = decodeURIComponent(name);
+    } else {
       name = key.split('/').pop() || key;
     }
     const type = headers.get('content-type') || '';
@@ -408,7 +410,7 @@ export class S3FileStorage implements FileStorage {
     const metadataType = headResponse.headers.get('x-amz-meta-type');
     
     if (metadataName) {
-      fileName = metadataName;
+      fileName = decodeURI(metadataName);
     }
 
     // Store AWS client and key in variables that can be captured by the closure
