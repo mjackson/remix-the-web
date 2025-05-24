@@ -2,6 +2,11 @@
 
 This is the changelog for [`fetch-proxy`](https://github.com/mjackson/remix-the-web/tree/main/packages/fetch-proxy). It follows [semantic versioning](https://semver.org/).
 
+## HEAD
+
+- Remove 'Content-Encoding' and 'Content-Length' headers from proxied response.
+- Apply all RequestInit params to the proxied request.
+
 ## v0.2.0 (2024-11-14)
 
 - Added CommonJS build
