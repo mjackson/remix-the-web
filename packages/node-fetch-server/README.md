@@ -53,10 +53,42 @@ function handler(request: Request) {
   return new Response('Hello, world!');
 }
 
-let server = http.createServer(createRequestListener(handler, { host: process.env.HOST }));
+let server = http.createServer(
+  createRequestListener(handler, {
+    host: process.env.HOST,
+  }),
+);
 
 server.listen(3000);
 ```
+
+Alternatively the host and protocol can be derived from the request headers using the function forms of the `host` and `protocol` options (useful when running your server behind a reverse proxy). If the function provided returns
+a falsy value, the default behavior is used as a fallback.
+
+```ts
+import * as assert from 'node:assert/strict';
+import * as http from 'node:http';
+import { createRequestListener } from '@mjackson/node-fetch-server';
+
+function handler(request: Request) {
+  // This is now true
+  assert.equal(
+    new URL(request.url).host,
+    request.headers.get('x-forwarded-host'),
+  );
+  return new Response('Hello, world!');
+}
+
+let server = http.createServer(
+  createRequestListener(handler, {
+    host: (headers) => headers.get('x-forwarded-host'),
+    protocol: (headers) => (headers.get('x-forwarded-proto') ?? 'http') + ':',
+  }),
+);
+
+server.listen(3000);
+```
+
 
 Information about the remote client IP and port is passed as the 2nd argument to your `FetchHandler`:
 
