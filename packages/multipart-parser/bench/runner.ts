@@ -4,6 +4,7 @@ import * as process from 'node:process';
 import * as messages from './messages.ts';
 import * as busboy from './parsers/busboy.ts';
 import * as fastifyBusboy from './parsers/fastify-busboy.ts';
+import * as formidableV3 from './parsers/formidable-v3.ts';
 import * as multipartParser from './parsers/multipart-parser.ts';
 import * as multipasta from './parsers/multipasta.ts';
 
@@ -57,6 +58,9 @@ async function runBenchmarks(parserName?: string): Promise<BenchmarkResults> {
   }
   if (parserName === 'multipasta' || parserName === undefined) {
     results['multipasta'] = await runParserBenchmarks(multipasta);
+  }
+  if (parserName === 'formidable-v3' || parserName === undefined) {
+    results['formidable-v3'] = await runParserBenchmarks(formidableV3);
   }
   if (parserName === 'busboy' || parserName === undefined) {
     results.busboy = await runParserBenchmarks(busboy);
