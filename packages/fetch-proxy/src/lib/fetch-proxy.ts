@@ -66,6 +66,7 @@ export function createFetchProxy(target: string | URL, options?: FetchProxyOptio
     let proxyInit: RequestInit = {
       method: incomingRequest.method,
       headers: proxyHeaders,
+      ...init,
     };
     if (incomingRequest.method !== 'GET' && incomingRequest.method !== 'HEAD') {
       proxyInit.body = incomingRequest.body;
@@ -103,6 +104,9 @@ export function createFetchProxy(target: string | URL, options?: FetchProxyOptio
         responseHeaders.append('Set-Cookie', header.toString());
       }
     }
+
+    responseHeaders.delete('Content-Encoding');
+    responseHeaders.delete('Content-Length');
 
     return new Response(targetResponse.body, {
       status: targetResponse.status,
