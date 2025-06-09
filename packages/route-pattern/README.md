@@ -1,4 +1,4 @@
-# URL Patterns
+# Route Pattern
 
 Route patterns are strings that describe a URL.
 Patterns always match against complete URLs, but in our examples we show only the relevant part of the URL for brevity.
