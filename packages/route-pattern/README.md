@@ -1,6 +1,6 @@
 # URL Patterns
 
-URL patterns are strings that describe the structure of URLs you want to match.
+Route patterns are strings that describe a URL.
 Patterns always match against complete URLs, but in our examples we show only the relevant part of the URL for brevity.
 
 ## Pathname
