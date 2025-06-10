@@ -5,7 +5,7 @@ Patterns always match against complete URLs, but in our examples we show only th
 
 ## Pathname
 
-The most common use-case for URL patterns is to match pathnames, so let's start with just the pathname.
+The most common use-case for route patterns is to match pathnames, so let's start with just the pathname.
 
 ### Params
 
