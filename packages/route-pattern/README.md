@@ -14,8 +14,8 @@ It does not discuss the algorithms nor data structures used by the matching engi
 ## Non-goals
 
 - Matching URL fragments (`#section`)
-- Matching the URL port (`:8080`)
-- Matching the URL credentials (`user:pass@`)
+- Matching URL port (`:8080`)
+- Matching URL credentials (`user:pass@`)
 - Caching
 - Request/Response handling
 
@@ -64,7 +64,7 @@ You can use any combination of these to create a route pattern, for example:
 // ...and so on...
 ```
 
-**Delimiters:** Route patterns use the first occurrences of `://`, `/`, and `?` as delimiters to split a route pattern into its parts.
+**Part delimiters:** Route patterns use the first occurrences of `://`, `/`, and `?` as delimiters to split a route pattern into its parts.
 Pathname-only route patterns are the most common, so route patterns are assumed to be pathname-only unless `://` or `?` are present.
 As a result, hostnames must begin with `://` and searches must begin with `?` to distinguish both from pathnames.
 
@@ -93,12 +93,67 @@ However, omitting a pathname means "match the 'empty' pathname" (namely `""` and
 
 ## Pattern modifiers
 
-Before describing [wildcards](#wildcards), [params](#params), and [optionals](#optionals),
-its important to note that each pattern modifier applies only in the same part of the URL where it appears.
+Each pattern modifier — [params](#params), [globs](#globs), and [optionals](#optionals) — applies only in the same part of the URL where it appears.
 As a result:
 
-- Wildcards and params do not match characters that appear outside of their part of the route pattern
+- Params and globs do not match characters that appear outside of their part of the route pattern
 - Optionals must begin and end within the same part of the route pattern
+
+### Params
+
+|            | protocol | hostname | pathname | search |
+| ---------- | -------- | -------- | -------- | ------ |
+| Supported? | ❌       | ✅       | ✅       | ❌     |
+
+Params match dynamic parts of a URL within a segment.
+
+They are written as a `:` optionally followed by a [JavaScript identifier](#javascript-identifier) that acts as its name:
+
+```ts
+'products/:id';
+// /products/wireless-headphones → { id: 'wireless-headphones' }
+// /products/123 → { id: '123' }
+```
+
+Params without a name do not return what they matched:
+
+```ts
+'products/:123';
+// todo show example matches where `:` is the param and `123` is static suffix
+```
+
+Param names must be unique:
+
+```ts
+// ❌ Bad - duplicate param name
+'users/:id/posts/:id';
+
+// ✅ Good - unique param names
+'users/:user/posts/:post';
+
+// ❌ Bad - duplicate param name across hostname and pathname
+'://:region.api.example.com/users/:region';
+
+// ✅ Good - `::` param captures across segments
+'files/::path/download';
+// /files/2023/photos/vacation.jpg/download → { path: '2023/photos/vacation.jpg' }
+```
+
+Params can be mixed with static text and even other params:
+
+```ts
+'users/@:id';
+// /users/@sarah → { id: 'sarah' }
+
+'downloads/:filename.pdf';
+// /downloads/report.pdf → { filename: 'report' }
+
+'api/v:major.:minor-:channel';
+// /api/v2.1-beta → { major: '2', minor: '1', channel: 'beta' }
+
+'://us-:region.:env.api.example.com';
+// us-east.staging.api.example.com → { region: 'east', env: 'staging' }
+```
 
 ### Wildcards
 
