@@ -10,8 +10,8 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write # Required for publishing the GitHub release.
-      id-token: write # The OIDC ID token is used for authentication with JSR.
+      contents: write # Required for publishing the GitHub release
+      id-token: write # The OIDC ID token is used for authentication with JSR
 
     steps:
       - name: Checkout
@@ -25,12 +25,15 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           registry-url: https://registry.npmjs.org
           cache: pnpm
 
       - name: Install dependencies
         run: pnpm install
+
+      - name: Build packages
+        run: pnpm build
 
       - name: Publish
         run: pnpm publish-release-ci ${{ github.ref_name }}

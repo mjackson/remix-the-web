@@ -1,23 +1,28 @@
 # node-fetch-server
 
-`node-fetch-server` allows you to build servers for Node.js that use the [web Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) primitives (namely [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) and [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response)) instead of the traditional `req`/`res` API used in libraries like [Express](https://expressjs.com/).
+Build portable Node.js servers using web-standard Fetch API primitives
 
-This web standard API is already used in many places across the JavaScript ecosystem:
+`node-fetch-server` brings the simplicity and familiarity of the [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to Node.js server development. Instead of dealing with Node's traditional `req`/`res` objects, you work with web-standard [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) and [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response) objects—the same APIs you already use in the browser and modern JavaScript runtimes.
+
+## Why node-fetch-server?
+
+The Fetch API is already the standard for server development in:
 
 - [`Bun.serve`](https://bun.sh/docs/api/http#bun-serve)
 - [Cloudflare Workers](https://developers.cloudflare.com/workers/runtime-apis/handlers/fetch/)
 - [`Deno.serve`](https://docs.deno.com/api/deno/~/Deno.serve)
 - [Fastly Compute](https://js-compute-reference-docs.edgecompute.app/docs/)
 
-When you write servers using the `Request` and `Response` APIs, you maximize the chances that your code will be portable across these different JavaScript runtimes.
+Now you can use the same pattern in Node.js!
 
 ## Features
 
-- Use web standard [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) and [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response) APIs for building servers, instead of node-specific API
-- Seamless integration with `node:http` and `node:https` modules
-- Supports custom hostnames (e.g. using `process.env.HOST` on a VPS to set the host portion of incoming request URLs)
-- Supports streaming responses using `new Response(stream)`
-- Exposes remote client address info
+- ✅ Web-standard [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) and [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response) APIs
+- ✅ Drop-in integration with `node:http` and `node:https` modules
+- ✅ Streaming response support with `ReadableStream`
+- ✅ Custom hostname configuration for deployment flexibility
+- ✅ Access to client connection info (IP address, port)
+- ✅ Full TypeScript support with type definitions
 
 ## Installation
 
@@ -25,70 +30,228 @@ When you write servers using the `Request` and `Response` APIs, you maximize the
 npm install @mjackson/node-fetch-server
 ```
 
-## Usage
+## Quick Start
+
+### Basic Server
+
+Here's a complete working example with a simple in-memory data store:
 
 ```ts
 import * as http from 'node:http';
 import { createRequestListener } from '@mjackson/node-fetch-server';
 
-function handler(request: Request) {
-  return new Response('Hello, world!');
+// Example: Simple in-memory user storage
+let users = new Map([
+  ['1', { id: '1', name: 'Alice', email: 'alice@example.com' }],
+  ['2', { id: '2', name: 'Bob', email: 'bob@example.com' }],
+]);
+
+async function handler(request: Request) {
+  let url = new URL(request.url);
+
+  // GET / - Home page
+  if (url.pathname === '/' && request.method === 'GET') {
+    return new Response('Welcome to the User API! Try GET /api/users');
+  }
+
+  // GET /api/users - List all users
+  if (url.pathname === '/api/users' && request.method === 'GET') {
+    return Response.json(Array.from(users.values()));
+  }
+
+  // GET /api/users/:id - Get specific user
+  let userMatch = url.pathname.match(/^\/api\/users\/(\w+)$/);
+  if (userMatch && request.method === 'GET') {
+    let user = users.get(userMatch[1]);
+    if (user) {
+      return Response.json(user);
+    }
+    return new Response('User not found', { status: 404 });
+  }
+
+  return new Response('Not Found', { status: 404 });
 }
 
+// Create a standard Node.js server
 let server = http.createServer(createRequestListener(handler));
 
-server.listen(3000);
+server.listen(3000, () => {
+  console.log('Server running at http://localhost:3000');
+});
 ```
 
-By default `request.url` is derived from the value of the `Host` HTTP header and the connection protocol being used. To support custom hostnames using e.g. a `HOST` environment variable, you can use the `host` option:
+### Working with Request Data
+
+Handle different types of request data using standard web APIs:
 
 ```ts
-import * as assert from 'node:assert/strict';
+async function handler(request: Request) {
+  let url = new URL(request.url);
+
+  // Handle JSON data
+  if (request.method === 'POST' && url.pathname === '/api/users') {
+    try {
+      let userData = await request.json();
+
+      // Validate required fields
+      if (!userData.name || !userData.email) {
+        return Response.json({ error: 'Name and email are required' }, { status: 400 });
+      }
+
+      // Create user (your implementation)
+      let newUser = {
+        id: Date.now().toString(),
+        ...userData,
+      };
+
+      return Response.json(newUser, { status: 201 });
+    } catch (error) {
+      return Response.json({ error: 'Invalid JSON' }, { status: 400 });
+    }
+  }
+
+  // Handle URL search params
+  if (url.pathname === '/api/search') {
+    let query = url.searchParams.get('q');
+    let limit = parseInt(url.searchParams.get('limit') || '10');
+
+    return Response.json({
+      query,
+      limit,
+      results: [], // Your search results here
+    });
+  }
+
+  return new Response('Not Found', { status: 404 });
+}
+```
+
+### Streaming Responses
+
+Take advantage of web-standard streaming with `ReadableStream`:
+
+```ts
+async function handler(request: Request) {
+  if (request.url.endsWith('/stream')) {
+    // Create a streaming response
+    let stream = new ReadableStream({
+      async start(controller) {
+        for (let i = 0; i < 5; i++) {
+          controller.enqueue(new TextEncoder().encode(`Chunk ${i}\n`));
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+        controller.close();
+      },
+    });
+
+    return new Response(stream, {
+      headers: { 'Content-Type': 'text/plain' },
+    });
+  }
+
+  return new Response('Not Found', { status: 404 });
+}
+```
+
+### Custom Hostname Configuration
+
+Configure custom hostnames for deployment on VPS or custom environments:
+
+```ts
 import * as http from 'node:http';
 import { createRequestListener } from '@mjackson/node-fetch-server';
 
-function handler(request: Request) {
-  // This is now true
-  assert.equal(new URL(request.url).host, process.env.HOST);
-  return new Response('Hello, world!');
+// Use a custom hostname (e.g., from environment variable)
+let hostname = process.env.HOST || 'api.example.com';
+
+async function handler(request: Request) {
+  // request.url will now use your custom hostname
+  console.log(request.url); // https://api.example.com/path
+
+  return Response.json({
+    message: 'Hello from custom domain!',
+    url: request.url,
+  });
 }
 
-let server = http.createServer(createRequestListener(handler, { host: process.env.HOST }));
+let server = http.createServer(createRequestListener(handler, { host: hostname }));
 
 server.listen(3000);
 ```
 
-Information about the remote client IP and port is passed as the 2nd argument to your `FetchHandler`:
+### Accessing Client Information
+
+Get client connection details (IP address, port) for logging or security:
 
 ```ts
 import { type FetchHandler } from '@mjackson/node-fetch-server';
 
-let handler: FetchHandler = (request, client) => {
-  return new Response(`The client IP address is ${client.address}`);
+let handler: FetchHandler = async (request, client) => {
+  // Log client information
+  console.log(`Request from ${client.address}:${client.port}`);
+
+  // Use for rate limiting, geolocation, etc.
+  if (isRateLimited(client.address)) {
+    return new Response('Too Many Requests', { status: 429 });
+  }
+
+  return Response.json({
+    message: 'Hello!',
+    yourIp: client.address,
+  });
 };
 ```
 
-## Low-level API
+### HTTPS Support
 
-In addition to the high-level `createRequestListener()` API, this package also provides 2 low-level APIs that are useful when building custom `fetch`-based servers in Node.js:
+Use with Node.js HTTPS module for secure connections:
 
-- `createRequest(req: http.IncomingMessage, res: http.ServerResponse, options: RequestOptions): Request`
-- `sendResponse(res: http.ServerResponse, response: Response): Promise<void>`
+```ts
+import * as https from 'node:https';
+import * as fs from 'node:fs';
+import { createRequestListener } from '@mjackson/node-fetch-server';
 
-These two functions serve as an efficient, minimal translation layer between Node.js `req`/`res` objects and fetch `Request`/`Response` objects. You could build your own custom server like this:
+let options = {
+  key: fs.readFileSync('private-key.pem'),
+  cert: fs.readFileSync('certificate.pem'),
+};
+
+let server = https.createServer(options, createRequestListener(handler));
+
+server.listen(443, () => {
+  console.log('HTTPS Server running on port 443');
+});
+```
+
+## Advanced Usage
+
+### Low-level API
+
+For more control over request/response handling, use the low-level API:
 
 ```ts
 import * as http from 'node:http';
 import { createRequest, sendResponse } from '@mjackson/node-fetch-server';
 
 let server = http.createServer(async (req, res) => {
+  // Convert Node.js request to Fetch API Request
   let request = createRequest(req, res, { host: process.env.HOST });
 
   try {
-    let response = await customAppLogic(request);
+    // Add custom headers or middleware logic
+    let startTime = Date.now();
+
+    // Process the request with your handler
+    let response = await handler(request);
+
+    // Add response timing header
+    let duration = Date.now() - startTime;
+    response.headers.set('X-Response-Time', `${duration}ms`);
+
+    // Send the response
     await sendResponse(res, response);
   } catch (error) {
-    console.error(error);
+    console.error('Server error:', error);
     res.writeHead(500, { 'Content-Type': 'text/plain' });
     res.end('Internal Server Error');
   }
@@ -97,58 +260,62 @@ let server = http.createServer(async (req, res) => {
 server.listen(3000);
 ```
 
+The low-level API provides:
+
+- `createRequest(req, res, options)` - Converts Node.js IncomingMessage to web Request
+- `sendResponse(res, response)` - Sends web Response using Node.js ServerResponse
+
+This is useful for:
+
+- Building custom middleware systems
+- Integrating with existing Node.js code
+- Implementing custom error handling
+- Performance-critical applications
+
+## Migration from Express
+
+Transitioning from Express? Here's a comparison of common patterns:
+
+### Basic Routing
+
+```ts
+// Express
+let app = express();
+
+app.get('/users/:id', async (req, res) => {
+  let user = await db.getUser(req.params.id);
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  res.json(user);
+});
+
+app.listen(3000);
+
+// node-fetch-server
+import { createRequestListener } from '@mjackson/node-fetch-server';
+
+async function handler(request: Request) {
+  let url = new URL(request.url);
+  let match = url.pathname.match(/^\/users\/(\w+)$/);
+
+  if (match && request.method === 'GET') {
+    let user = await db.getUser(match[1]);
+    if (!user) {
+      return Response.json({ error: 'User not found' }, { status: 404 });
+    }
+    return Response.json(user);
+  }
+
+  return new Response('Not Found', { status: 404 });
+}
+
+http.createServer(createRequestListener(handler)).listen(3000);
+```
+
 ## Related Packages
 
 - [`fetch-proxy`](https://github.com/mjackson/remix-the-web/tree/main/packages/fetch-proxy) - Build HTTP proxy servers using the web fetch API
-
-## Benchmark
-
-A basic "hello world" benchmark shows `node-fetch-server` introduces considerable overhead on top of a vanilla `node:http` server. However, it is still able to serve more requests per second (and has higher overall throughput) than Express v4, so the slowdown should be acceptable for most applications.
-
-```
-> @mjackson/node-fetch-server@0.0.0 bench /Users/michael/Projects/remix-the-web/packages/node-fetch-server
-> bash ./bench/runner.sh
-
-Platform: Darwin (24.0.0)
-CPU: Apple M1 Pro
-Date: 11/14/2024, 2:30:22 PM
-
-Running benchmark for node:http@22.8.0 ...
-
-Running 30s test @ http://127.0.0.1:3000/
-  12 threads and 400 connections
-  Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency     9.97ms   31.92ms 786.67ms   99.09%
-    Req/Sec     4.45k   268.33     6.38k    93.69%
-  1594257 requests in 30.02s, 326.89MB read
-  Socket errors: connect 0, read 1317, write 6, timeout 0
-Requests/sec:  53110.92
-Transfer/sec:     10.89MB
-
-Running benchmark for node-fetch-server@0.1.0 ...
-
-Running 30s test @ http://127.0.0.1:3000/
-  12 threads and 400 connections
-  Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency    22.74ms   81.06ms   1.46s    98.22%
-    Req/Sec     2.42k   185.82     4.30k    91.80%
-  866347 requests in 30.03s, 177.64MB read
-  Socket errors: connect 0, read 1496, write 3, timeout 0
-Requests/sec:  28849.46
-Transfer/sec:      5.92MB
-
-Running benchmark for express@4.19.2 ...
-
-Running 30s test @ http://127.0.0.1:3000/
-  12 threads and 400 connections
-  Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency    36.46ms  125.89ms   1.99s    97.89%
-    Req/Sec     1.56k   146.86     2.93k    88.25%
-  558504 requests in 30.06s, 134.76MB read
-  Socket errors: connect 0, read 1261, write 11, timeout 36
-Requests/sec:  18579.11
-Transfer/sec:      4.48MB
-```
 
 ## License
 

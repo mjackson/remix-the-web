@@ -2,6 +2,30 @@
 
 This is the changelog for [`form-data-parser`](https://github.com/mjackson/remix-the-web/tree/main/packages/form-data-parser). It follows [semantic versioning](https://semver.org/).
 
+## v0.9.1 (2025-06-13)
+
+- Export `FormDataParserError` and `MaxFilesExceededError`
+- Re-export `MultipartParseError`, `MaxHeaderSizeExceededError`, and `MaxFileSizeExceededError` from multipart parser
+
+## v0.9.0 (2025-06-13)
+
+This release updates to `multipart-parser` 0.10.0 and removes the restrictions on checking the `size` and/or `slice`ing `FileUpload` objects.
+
+- `FileUpload` is now a normal subclass of `File` with all the same functionality (instead of just implementing the same interface)
+- Add `maxFiles` option to `parseFormData` to allow limiting the number of files uploaded in a single request
+
+```ts
+let formData = await parseFormData(request, { maxFiles: 5 });
+let file = formData.get('file-upload');
+let size = file.size; // This is ok now!
+```
+
+## v0.8.0 (2025-06-10)
+
+- Add `/src` to npm package, so "go to definition" goes to the actual source
+- Use one set of types for all built files, instead of separate types for ESM and CJS
+- Build using esbuild directly instead of tsup
+
 ## v0.7.0 (2025-01-25)
 
 - BREAKING CHANGE: Override `parseFormData` signature so the upload handler is always last in the argument list. `parserOptions` are now an optional 2nd arg.

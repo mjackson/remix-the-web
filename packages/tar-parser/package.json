@@ -1,6 +1,6 @@
 {
   "name": "@mjackson/tar-parser",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "A fast, efficient parser for tar streams in any JavaScript environment",
   "author": "Michael Jackson <mjijackson@gmail.com>",
   "license": "MIT",
@@ -11,44 +11,39 @@
   },
   "homepage": "https://github.com/mjackson/remix-the-web/tree/main/packages/tar-parser#readme",
   "files": [
-    "dist",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "dist",
+    "src",
+    "!src/**/*.test.ts"
   ],
   "type": "module",
   "types": "./dist/tar-parser.d.ts",
-  "main": "./dist/tar-parser.js",
+  "module": "./dist/tar-parser.js",
+  "main": "./dist/tar-parser.cjs",
   "exports": {
     ".": {
-      "module-sync": {
-        "types": "./dist/tar-parser.d.ts",
-        "default": "./dist/tar-parser.js"
-      },
-      "import": {
-        "types": "./dist/tar-parser.d.ts",
-        "default": "./dist/tar-parser.js"
-      },
-      "require": {
-        "types": "./dist/tar-parser.d.cts",
-        "default": "./dist/tar-parser.cjs"
-      },
-      "default": {
-        "types": "./dist/tar-parser.d.ts",
-        "default": "./dist/tar-parser.js"
-      }
+      "types": "./dist/tar-parser.d.ts",
+      "import": "./dist/tar-parser.js",
+      "require": "./dist/tar-parser.cjs",
+      "default": "./dist/tar-parser.js"
     },
     "./package.json": "./package.json"
   },
   "devDependencies": {
     "@mjackson/lazy-file": "workspace:^",
     "@types/node": "^20.14.10",
-    "tsup": "^8.3.5"
+    "esbuild": "^0.25.5"
   },
   "scripts": {
-    "bench": "node --experimental-strip-types --disable-warning=ExperimentalWarning ./bench/runner.ts",
-    "build": "tsup",
-    "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test ./src/**/*.test.ts",
-    "prepare": "pnpm run build"
+    "bench": "node --disable-warning=ExperimentalWarning ./bench/runner.ts",
+    "build:types": "tsc --project tsconfig.build.json",
+    "build:esm": "esbuild src/tar-parser.ts --bundle --outfile=dist/tar-parser.js --format=esm --platform=neutral --sourcemap",
+    "build:cjs": "esbuild src/tar-parser.ts --bundle --outfile=dist/tar-parser.cjs --format=cjs --platform=node --sourcemap",
+    "build": "pnpm run clean && pnpm run build:types && pnpm run build:esm && pnpm run build:cjs",
+    "clean": "rm -rf dist",
+    "test": "node --disable-warning=ExperimentalWarning --test ./src/**/*.test.ts",
+    "prepublishOnly": "pnpm run build"
   },
   "keywords": [
     "tar",

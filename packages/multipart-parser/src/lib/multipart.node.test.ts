@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { getRandomBytes } from '../../test/utils.ts';
 import { createMultipartRequest } from '../../test/utils.node.ts';
 
-import { type MultipartPart } from './multipart.ts';
+import type { MultipartPart } from './multipart.ts';
 import { parseMultipartRequest } from './multipart.node.ts';
 
 describe('parseMultipartRequest (node)', () => {
@@ -14,9 +14,9 @@ describe('parseMultipartRequest (node)', () => {
     let request = createMultipartRequest(boundary);
 
     let parts = [];
-    await parseMultipartRequest(request, (part) => {
+    for await (let part of parseMultipartRequest(request)) {
       parts.push(part);
-    });
+    }
 
     assert.equal(parts.length, 0);
   });
@@ -27,17 +27,18 @@ describe('parseMultipartRequest (node)', () => {
     });
 
     let parts: MultipartPart[] = [];
-    await parseMultipartRequest(request, (part) => {
+    for await (let part of parseMultipartRequest(request)) {
       parts.push(part);
-    });
+    }
 
     assert.equal(parts.length, 1);
     assert.equal(parts[0].name, 'field1');
-    assert.equal(await parts[0].text(), 'value1');
+    assert.equal(parts[0].text, 'value1');
   });
 
   it('parses large file uploads correctly', async () => {
-    let content = getRandomBytes(1024 * 1024 * 10); // 10 MB file
+    let maxFileSize = 1024 * 1024 * 10; // 10 MiB
+    let content = getRandomBytes(maxFileSize);
     let request = createMultipartRequest(boundary, {
       file1: {
         filename: 'tesla.jpg',
@@ -47,14 +48,14 @@ describe('parseMultipartRequest (node)', () => {
     });
 
     let parts: { name?: string; filename?: string; mediaType?: string; content: Uint8Array }[] = [];
-    await parseMultipartRequest(request, async (part) => {
+    for await (let part of parseMultipartRequest(request, { maxFileSize })) {
       parts.push({
         name: part.name,
         filename: part.filename,
         mediaType: part.mediaType,
-        content: await part.bytes(),
+        content: part.bytes,
       });
-    });
+    }
 
     assert.equal(parts.length, 1);
     assert.equal(parts[0].name, 'file1');

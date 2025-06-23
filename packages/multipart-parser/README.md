@@ -1,18 +1,25 @@
 # multipart-parser
 
-`multipart-parser` is a fast, efficient parser for multipart streams. It can be used in any JavaScript environment (not just node.js) for a variety of use cases including:
+`multipart-parser` is a fast, streaming multipart parser that works in **any JavaScript environment**, from serverless functions to traditional servers. Whether you're handling file uploads, parsing email attachments, or working with multipart API responses, `multipart-parser` has you covered.
 
-- Handling file uploads (`multipart/form-data` requests)
-- Parsing `multipart/mixed` messages (email attachments, API responses, etc.)
-- Parsing email messages with both plain text and HTML versions (`multipart/alternative`)
+## 🚀 Why multipart-parser?
 
-## Features
+- **Universal JavaScript** - One library that works everywhere: Node.js, Bun, Deno, Cloudflare Workers, and browsers
+- **Blazing Fast** - Consistently outperforms popular alternatives like busboy in benchmarks
+- **Zero Dependencies** - Lightweight and secure with no external dependencies
+- **Memory Efficient** - Streaming architecture that `yield`s files as they are found in the stream
+- **Type Safe** - Written in TypeScript with comprehensive type definitions
+- **Standards Based** - Built on the web standard [Streams API](https://developer.mozilla.org/en-US/docs/Web/API/Streams_API) for maximum compatibility
+- **Production Ready** - Battle-tested error handling with specific error types for common scenarios
 
-- Runs anywhere JavaScript runs (see [examples for Node.js, Bun, Deno, and Cloudflare Workers](https://github.com/mjackson/remix-the-web/tree/main/packages/multipart-parser/examples))
-- Built on the standard [web Streams API](https://developer.mozilla.org/en-US/docs/Web/API/Streams_API)
-- Supports the entire spectrum of `multipart/*` message types
-- Memory efficient and does not buffer anything in normal usage
-- [As fast or faster than](https://github.com/mjackson/remix-the-web/tree/main/packages/multipart-parser#benchmark) other popular multipart libraries
+## 📦 Features
+
+- Parse file uploads (`multipart/form-data`) with automatic field and file detection
+- Support for all `multipart/*` content types (mixed, alternative, related, etc.)
+- Convenient `MultipartPart` API with `arrayBuffer`, `bytes`, `text`, `size`, and metadata access
+- Built-in file size limiting to prevent abuse
+- First-class Node.js support with native `http.IncomingMessage` compatibility
+- [Examples for every major runtime](https://github.com/mjackson/remix-the-web/tree/main/packages/multipart-parser/examples)
 
 ## Installation
 
@@ -30,24 +37,28 @@ deno add @mjackson/multipart-parser
 
 ## Usage
 
-The most common use case for `multipart-parser` is handling file uploads when you're building a web server. For this case, the `parseMultipartRequest` function is your friend. It will automatically validate the request is `multipart/form-data`, extract the multipart boundary from the `Content-Type` header, parse all fields and files in the `request.body` stream, and give each one to you as a `MultipartPart` object so you can save it to disk or upload it somewhere.
+The most common use case for `multipart-parser` is handling file uploads when you're building a web server. For this case, the `parseMultipartRequest` function is your friend. It automatically validates the request is `multipart/form-data`, extracts the multipart boundary from the `Content-Type` header, parses all fields and files in the `request.body` stream, and gives each one to you as a `MultipartPart` object with a rich API for accessing its metadata and content.
 
 ```ts
 import { MultipartParseError, parseMultipartRequest } from '@mjackson/multipart-parser';
 
 async function handleRequest(request: Request): void {
   try {
-    await parseMultipartRequest(request, (part) => {
+    for await (let part of parseMultipartRequest(request)) {
       if (part.isFile) {
-        let buffer = await part.bytes(); // Uint8Array
-        console.log(`File received: ${part.filename} (${buffer.length} bytes)`);
+        // Access file data in multiple formats
+        let buffer = part.arrayBuffer; // ArrayBuffer
+        console.log(`File received: ${part.filename} (${buffer.byteLength} bytes)`);
         console.log(`Content type: ${part.mediaType}`);
         console.log(`Field name: ${part.name}`);
+
+        // Save to disk, upload to cloud storage, etc.
+        await saveFile(part.filename, part.bytes);
       } else {
-        let text = await part.text(); // string
+        let text = part.text; // string
         console.log(`Field received: ${part.name} = ${JSON.stringify(text)}`);
       }
-    });
+    }
   } catch (error) {
     if (error instanceof MultipartParseError) {
       console.error('Failed to parse multipart request:', error.message);
@@ -70,12 +81,13 @@ import {
 } from '@mjackson/multipart-parser/node';
 
 const oneMb = Math.pow(2, 20);
+const maxFileSize = 10 * oneMb;
 
 async function handleRequest(request: Request): Promise<Response> {
   try {
-    await parseMultipartRequest(request, { maxFileSize: 10 * oneMb }, (part) => {
+    for await (let part of parseMultipartRequest(request, { maxFileSize })) {
       // ...
-    });
+    }
   } catch (error) {
     if (error instanceof MaxFileSizeExceededError) {
       return new Response('File size limit exceeded', { status: 413 });
@@ -89,7 +101,7 @@ async function handleRequest(request: Request): Promise<Response> {
 }
 ```
 
-## Node.js Support
+## Node.js Bindings
 
 The main module (`import from "@mjackson/multipart-parser"`) assumes you're working with [the fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) (`Request`, `ReadableStream`, etc). Support for these interfaces was added to Node.js by the [undici](https://github.com/nodejs/undici) project in [version 16.5.0](https://nodejs.org/en/blog/release/v16.5.0).
 
@@ -99,11 +111,11 @@ If however you're building a server for Node.js that relies on node-specific API
 import * as http from 'node:http';
 import { MultipartParseError, parseMultipartRequest } from '@mjackson/multipart-parser/node';
 
-const server = http.createServer(async (req, res) => {
+let server = http.createServer(async (req, res) => {
   try {
-    await parseMultipartRequest(req, (part) => {
+    for await (let part of parseMultipartRequest(req)) {
       // ...
-    });
+    }
   } catch (error) {
     if (error instanceof MultipartParseError) {
       console.error('Failed to parse multipart request:', error.message);
@@ -123,17 +135,25 @@ If you're working directly with multipart boundaries and buffers/streams of mult
 ```ts
 import { parseMultipart } from '@mjackson/multipart-parser';
 
-// Get the multipart data from some API, filesystem, etc.
-let multipartMessage = new Uint8Array();
-// can also be a stream or any Iterable/AsyncIterable
-// let multipartMessage = new ReadableStream(...);
-// let multipartMessage = [new Uint8Array(...), new Uint8Array(...)];
-
+let message = new Uint8Array(/* ... */);
 let boundary = '----WebKitFormBoundary56eac3x';
 
-await parseMultipart(multipartMessage, { boundary }, (part) => {
+for (let part of parseMultipart(message, { boundary })) {
   // ...
-});
+}
+```
+
+In addition, the `parseMultipartStream` function provides an `async` generator interface for multipart data in a `ReadableStream`:
+
+```ts
+import { parseMultipartStream } from '@mjackson/multipart-parser';
+
+let message = new ReadableStream(/* ... */);
+let boundary = '----WebKitFormBoundary56eac3x';
+
+for await (let part of parseMultipartStream(message, { boundary })) {
+  // ...
+}
 ```
 
 ## Examples
@@ -147,66 +167,58 @@ The [`examples` directory](https://github.com/mjackson/remix-the-web/tree/main/p
 
 ## Benchmark
 
-`multipart-parser` is designed to be as efficient as possible, operating mainly on streams of data and rarely buffering in common usage. This design yields exceptional performance when handling multipart payloads of any size. In most benchmarks, `multipart-parser` is as fast or faster than `busboy`.
-
-Important: Benchmarking can be tricky, and results vary greatly depending on platform, parameters, and other factors. So take these results with a grain of salt. The main point of this library is to be portable between JavaScript runtimes. To this end, we run the benchmarks on three major open source JavaScript runtimes: Node.js, Bun, and Deno.
+`multipart-parser` is designed to be as efficient as possible, operating on streams of data and rarely buffering in common usage. This design yields exceptional performance when handling multipart payloads of any size. In benchmarks, `multipart-parser` is as fast or faster than `busboy`.
 
 The results of running the benchmarks on my laptop:
 
 ```
-> @mjackson/multipart-parser@0.6.1 bench:node /Users/michael/Projects/multipart-parser
-> node --import tsimp/import ./bench/runner.ts
+> @mjackson/multipart-parser@0.10.1 bench:node /Users/michael/Projects/remix-the-web/packages/multipart-parser
+> node --disable-warning=ExperimentalWarning ./bench/runner.ts
 
-Platform: Darwin (23.5.0)
+Platform: Darwin (24.5.0)
 CPU: Apple M1 Pro
-Date: 8/18/2024, 4:18:39 PM
-Node.js v22.1.0
+Date: 6/13/2025, 12:27:09 PM
+Node.js v24.0.2
 ┌──────────────────┬──────────────────┬──────────────────┬──────────────────┬───────────────────┐
 │ (index)          │ 1 small file     │ 1 large file     │ 100 small files  │ 5 large files     │
 ├──────────────────┼──────────────────┼──────────────────┼──────────────────┼───────────────────┤
-│ multipart-parser │ '0.01 ms ± 0.03' │ '1.06 ms ± 0.04' │ '0.10 ms ± 0.03' │ '10.60 ms ± 0.22' │
-│ multipasta       │ '0.01 ms ± 0.03' │ '1.06 ms ± 0.03' │ '0.15 ms ± 0.02' │ '10.70 ms ± 2.70' │
-│ busboy           │ '0.03 ms ± 0.09' │ '3.01 ms ± 0.08' │ '0.22 ms ± 0.03' │ '29.91 ms ± 0.91' │
-│ @fastify/busboy  │ '0.03 ms ± 0.07' │ '1.20 ms ± 0.08' │ '0.39 ms ± 0.07' │ '11.86 ms ± 0.17' │
+│ multipart-parser │ '0.01 ms ± 0.03' │ '1.08 ms ± 0.08' │ '0.04 ms ± 0.01' │ '10.50 ms ± 0.38' │
+│ multipasta       │ '0.02 ms ± 0.06' │ '1.07 ms ± 0.02' │ '0.15 ms ± 0.02' │ '10.46 ms ± 0.11' │
+│ busboy           │ '0.06 ms ± 0.17' │ '3.07 ms ± 0.24' │ '0.24 ms ± 0.05' │ '29.85 ms ± 0.18' │
+│ @fastify/busboy  │ '0.05 ms ± 0.13' │ '1.23 ms ± 0.09' │ '0.45 ms ± 0.22' │ '11.81 ms ± 0.11' │
 └──────────────────┴──────────────────┴──────────────────┴──────────────────┴───────────────────┘
 
-> @mjackson/multipart-parser@0.6.1 bench:bun /Users/michael/Projects/multipart-parser
+> @mjackson/multipart-parser@0.10.1 bench:bun /Users/michael/Projects/remix-the-web/packages/multipart-parser
 > bun run ./bench/runner.ts
 
-Platform: Darwin (23.5.0)
+Platform: Darwin (24.5.0)
 CPU: Apple M1 Pro
-Date: 8/18/2024, 4:20:58 PM
-Bun 1.1.21
+Date: 6/13/2025, 12:27:31 PM
+Bun 1.2.13
 ┌──────────────────┬────────────────┬────────────────┬─────────────────┬─────────────────┐
 │                  │ 1 small file   │ 1 large file   │ 100 small files │ 5 large files   │
 ├──────────────────┼────────────────┼────────────────┼─────────────────┼─────────────────┤
-│ multipart-parser │ 0.01 ms ± 0.04 │ 0.91 ms ± 0.09 │ 0.11 ms ± 0.05  │ 8.23 ms ± 0.18  │
-│       multipasta │ 0.01 ms ± 0.03 │ 0.87 ms ± 0.08 │ 0.22 ms ± 0.15  │ 8.09 ms ± 0.15  │
-│           busboy │ 0.03 ms ± 0.07 │ 3.59 ms ± 0.13 │ 0.36 ms ± 0.17  │ 35.26 ms ± 0.39 │
-│  @fastify/busboy │ 0.04 ms ± 0.11 │ 7.23 ms ± 0.15 │ 0.63 ms ± 0.15  │ 71.86 ms ± 0.53 │
+│ multipart-parser │ 0.01 ms ± 0.04 │ 0.86 ms ± 0.09 │ 0.04 ms ± 0.01  │ 8.32 ms ± 0.26  │
+│       multipasta │ 0.02 ms ± 0.07 │ 0.87 ms ± 0.03 │ 0.25 ms ± 0.21  │ 8.27 ms ± 0.09  │
+│           busboy │ 0.05 ms ± 0.17 │ 3.54 ms ± 0.10 │ 0.30 ms ± 0.03  │ 34.79 ms ± 0.38 │
+│  @fastify/busboy │ 0.06 ms ± 0.18 │ 4.04 ms ± 0.08 │ 0.48 ms ± 0.06  │ 39.91 ms ± 0.37 │
 └──────────────────┴────────────────┴────────────────┴─────────────────┴─────────────────┘
 
-> @mjackson/multipart-parser@0.6.1 bench:deno /Users/michael/Projects/multipart-parser
-> deno --unstable-byonm --unstable-sloppy-imports run --allow-sys ./bench/runner.ts
+> @mjackson/multipart-parser@0.10.1 bench:deno /Users/michael/Projects/remix-the-web/packages/multipart-parser
+> deno run --allow-sys ./bench/runner.ts
 
-Platform: Darwin (23.5.0)
+Platform: Darwin (24.5.0)
 CPU: Apple M1 Pro
-Date: 8/18/2024, 4:24:16 PM
-Deno 1.45.5
-┌──────────────────┬──────────────────┬───────────────────┬──────────────────┬────────────────────┐
-│ (idx)            │ 1 small file     │ 1 large file      │ 100 small files  │ 5 large files      │
-├──────────────────┼──────────────────┼───────────────────┼──────────────────┼────────────────────┤
-│ multipart-parser │ "0.01 ms ± 0.15" │ "1.00 ms ± 1.00"  │ "0.08 ms ± 0.39" │ "10.08 ms ± 0.41"  │
-│ multipasta       │ "0.01 ms ± 0.14" │ "1.02 ms ± 1.00"  │ "0.17 ms ± 0.56" │ "14.59 ms ± 0.92"  │
-│ busboy           │ "0.04 ms ± 0.28" │ "3.04 ms ± 1.00"  │ "0.30 ms ± 0.71" │ "29.86 ms ± 0.83"  │
-│ @fastify/busboy  │ "0.05 ms ± 0.31" │ "12.36 ms ± 0.78" │ "0.78 ms ± 0.98" │ "123.54 ms ± 5.04" │
-└──────────────────┴──────────────────┴───────────────────┴──────────────────┴────────────────────┘
-```
-
-I encourage you to run the benchmarks yourself. You'll probably get different results!
-
-```sh
-pnpm run bench
+Date: 6/13/2025, 12:28:12 PM
+Deno 2.3.6
+┌──────────────────┬──────────────────┬────────────────────┬──────────────────┬─────────────────────┐
+│ (idx)            │ 1 small file     │ 1 large file       │ 100 small files  │ 5 large files       │
+├──────────────────┼──────────────────┼────────────────────┼──────────────────┼─────────────────────┤
+│ multipart-parser │ "0.01 ms ± 0.03" │ "1.03 ms ± 0.04"   │ "0.05 ms ± 0.01" │ "10.05 ms ± 0.20"   │
+│ multipasta       │ "0.02 ms ± 0.07" │ "1.04 ms ± 0.03"   │ "0.16 ms ± 0.02" │ "10.10 ms ± 0.08"   │
+│ busboy           │ "0.05 ms ± 0.19" │ "3.06 ms ± 0.15"   │ "0.32 ms ± 0.05" │ "29.92 ms ± 0.24"   │
+│ @fastify/busboy  │ "0.06 ms ± 0.14" │ "14.72 ms ± 11.42" │ "0.81 ms ± 0.20" │ "127.63 ms ± 35.77" │
+└──────────────────┴──────────────────┴────────────────────┴──────────────────┴─────────────────────┘
 ```
 
 ## Related Packages

@@ -1,6 +1,6 @@
 {
   "name": "@mjackson/form-data-parser",
-  "version": "0.7.0",
+  "version": "0.9.1",
   "description": "A request.formData() wrapper with streaming file upload handling",
   "author": "Michael Jackson <mjijackson@gmail.com>",
   "repository": {
@@ -11,31 +11,22 @@
   "homepage": "https://github.com/mjackson/remix-the-web/tree/main/packages/form-data-parser#readme",
   "license": "MIT",
   "files": [
-    "dist",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "dist",
+    "src",
+    "!src/**/*.test.ts"
   ],
   "type": "module",
   "types": "./dist/form-data-parser.d.ts",
-  "main": "./dist/form-data-parser.js",
+  "module": "./dist/form-data-parser.js",
+  "main": "./dist/form-data-parser.cjs",
   "exports": {
     ".": {
-      "module-sync": {
-        "types": "./dist/form-data-parser.d.ts",
-        "default": "./dist/form-data-parser.js"
-      },
-      "import": {
-        "types": "./dist/form-data-parser.d.ts",
-        "default": "./dist/form-data-parser.js"
-      },
-      "require": {
-        "types": "./dist/form-data-parser.d.cts",
-        "default": "./dist/form-data-parser.cjs"
-      },
-      "default": {
-        "types": "./dist/form-data-parser.d.ts",
-        "default": "./dist/form-data-parser.js"
-      }
+      "types": "./dist/form-data-parser.d.ts",
+      "import": "./dist/form-data-parser.js",
+      "require": "./dist/form-data-parser.cjs",
+      "default": "./dist/form-data-parser.js"
     },
     "./package.json": "./package.json"
   },
@@ -44,12 +35,16 @@
   },
   "devDependencies": {
     "@types/node": "^22.4.1",
-    "tsup": "^8.3.5"
+    "esbuild": "^0.25.5"
   },
   "scripts": {
-    "build": "tsup",
-    "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test ./src/**/*.test.ts",
-    "prepare": "pnpm run build"
+    "build:types": "tsc --project tsconfig.build.json",
+    "build:esm": "esbuild src/form-data-parser.ts --bundle --outfile=dist/form-data-parser.js --format=esm --platform=neutral --sourcemap",
+    "build:cjs": "esbuild src/form-data-parser.ts --bundle --outfile=dist/form-data-parser.cjs --format=cjs --platform=node --sourcemap",
+    "build": "pnpm run clean && pnpm run build:types && pnpm run build:esm && pnpm run build:cjs",
+    "clean": "rm -rf dist",
+    "test": "node --disable-warning=ExperimentalWarning --test ./src/**/*.test.ts",
+    "prepublishOnly": "pnpm run build"
   },
   "keywords": [
     "form-data",

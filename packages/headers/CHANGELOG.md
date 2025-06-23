@@ -2,6 +2,17 @@
 
 This is the changelog for [`headers`](https://github.com/mjackson/remix-the-web/tree/main/packages/headers). It follows [semantic versioning](https://semver.org/).
 
+## v0.11.1 (2025-06-06)
+
+- Do not minify builds
+- Remove some test files from the build
+
+## v0.11.0 (2025-06-06)
+
+- Add `/src` to npm package, so "go to definition" goes to the actual source
+- Use one set of types for all built files, instead of separate types for ESM and CJS
+- Build using esbuild directly instead of tsup
+
 ## v0.10.0 (2025-01-27)
 
 This release contains several improvements to `Cookie` that bring it more in line with other headers like `Accept`, `AcceptEncoding`, and `AcceptLanguage`.
