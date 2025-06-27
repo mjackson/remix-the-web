@@ -1,0 +1,57 @@
+{
+  "name": "@mjackson/http-parser",
+  "version": "0.1.0",
+  "description": "High-performance HTTP/1.1 parser using llhttp WASM",
+  "type": "module",
+  "main": "./dist/http-parser.js",
+  "types": "./dist/http-parser.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/http-parser.d.ts",
+      "import": "./dist/http-parser.js"
+    }
+  },
+  "files": [
+    "dist/",
+    "llhttp/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json && cp -r src/llhttp dist/",
+    "build:wasm": "node scripts/build-wasm.js --docker",
+    "update:llhttp": "node scripts/update-llhttp.js",
+    "test": "node --disable-warning=ExperimentalWarning --test src/*.test.ts",
+    "test:benchmark": "node --disable-warning=ExperimentalWarning src/http-parser-benchmark.ts",
+    "test:load": "node --disable-warning=ExperimentalWarning src/http-parser-load.ts",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "keywords": [
+    "http",
+    "parser",
+    "request",
+    "llhttp",
+    "wasm",
+    "performance",
+    "undici"
+  ],
+  "author": "Michael Jackson",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mjackson/http-parser.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mjackson/http-parser/issues"
+  },
+  "homepage": "https://github.com/mjackson/http-parser#readme",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  },
+  "peerDependencies": {},
+  "dependencies": {}
+}
