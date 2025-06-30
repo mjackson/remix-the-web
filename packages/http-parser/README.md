@@ -99,7 +99,7 @@ try {
 
     parser.write(value);
 
-    if (parser.isPaused()) {
+    if (parser.paused) {
       // Handle backpressure
       await drainBuffer();
       parser.resume();

@@ -1,8 +1,23 @@
 import assert from 'node:assert';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
 
-const require = createRequire(import.meta.url);
-const constants = require('./llhttp/constants');
+// Polyfill __dirname for ESM
+declare const __dirname: string | undefined;
+const currentDir = typeof __dirname !== 'undefined' 
+  ? __dirname 
+  : dirname(fileURLToPath(import.meta.url));
+
+// Create require function that works in both ESM and CJS
+declare const require: any;
+const requireFunc = typeof require !== 'undefined' ? require : createRequire(import.meta.url);
+
+// Load constants synchronously
+const constantsPath = join(currentDir, 'llhttp', 'constants.js');
+const constants = requireFunc(constantsPath);
+
 const textDecoder = new TextDecoder();
 
 export const HTTP_BOTH = constants.TYPE.BOTH;
@@ -34,14 +49,20 @@ let currentBufferSize = 0;
 let currentBufferPtr: number | null = null;
 
 async function lazyllhttp(): Promise<LLHttpInstance> {
-  let llhttpWasmData = process.env.JEST_WORKER_ID ? require('./llhttp/llhttp-wasm') : undefined;
-
-  let mod: WebAssembly.Module;
+  // Load WASM files as buffers
+  let wasmBuffer: Buffer;
+  
   try {
-    mod = await WebAssembly.compile(require('./llhttp/llhttp_simd-wasm'));
-  } catch (e) {
-    mod = await WebAssembly.compile(llhttpWasmData || require('./llhttp/llhttp-wasm'));
+    // Try SIMD version first
+    const simdPath = join(currentDir, 'llhttp', 'llhttp_simd.wasm');
+    wasmBuffer = readFileSync(simdPath);
+  } catch {
+    // Fall back to regular version
+    const wasmPath = join(currentDir, 'llhttp', 'llhttp.wasm');
+    wasmBuffer = readFileSync(wasmPath);
   }
+
+  const mod = await WebAssembly.compile(wasmBuffer);
 
   return (await WebAssembly.instantiate(mod, {
     env: {
@@ -295,7 +316,7 @@ export interface ParserOptions {
  *   for await (const chunk of stream) {
  *     parser.write(chunk);
  *
- *     if (parser.isPaused()) {
+ *     if (parser.paused) {
  *       await drainBuffer();
  *       parser.resume(); // Continue parsing
  *     }
@@ -426,7 +447,7 @@ export class HttpParser {
   /**
    * Returns true if the parser is currently paused.
    */
-  isPaused(): boolean {
+  get paused(): boolean {
     return this.#paused;
   }
 
@@ -659,7 +680,7 @@ export async function parseHttpStream(
 
         parser.write(value);
 
-        if (parser.isPaused()) {
+        if (parser.paused) {
           throw new Error(
             'Pausing is not supported in parseHttpStream. Use HttpParser directly for pause/resume support.',
           );

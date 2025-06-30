@@ -3,13 +3,17 @@
   "version": "0.1.0",
   "description": "High-performance HTTP/1.1 parser using llhttp WASM",
   "type": "module",
-  "main": "./dist/http-parser.js",
   "types": "./dist/http-parser.d.ts",
+  "module": "./dist/http-parser.js",
+  "main": "./dist/http-parser.cjs",
   "exports": {
     ".": {
       "types": "./dist/http-parser.d.ts",
-      "import": "./dist/http-parser.js"
-    }
+      "import": "./dist/http-parser.js",
+      "require": "./dist/http-parser.cjs",
+      "default": "./dist/http-parser.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist/",
@@ -18,13 +22,17 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc --project tsconfig.build.json && cp -r src/llhttp dist/",
+    "build:types": "tsc --project tsconfig.build.json",
+    "build:esm": "esbuild src/http-parser.ts --outfile=dist/http-parser.js --format=esm --platform=node --sourcemap",
+    "build:cjs": "esbuild src/http-parser.ts --outfile=dist/http-parser.cjs --format=cjs --platform=node --sourcemap",
+    "build": "pnpm run clean && pnpm run build:types && pnpm run build:esm && pnpm run build:cjs && cp -r src/llhttp dist/ && cp dist/http-parser.d.ts dist/http-parser.d.cts",
+    "clean": "rm -rf dist",
     "build:wasm": "node scripts/build-wasm.js --docker",
     "update:llhttp": "node scripts/update-llhttp.js",
     "test": "node --disable-warning=ExperimentalWarning --test src/*.test.ts",
-    "test:benchmark": "node --disable-warning=ExperimentalWarning src/http-parser-benchmark.ts",
-    "test:load": "node --disable-warning=ExperimentalWarning src/http-parser-load.ts",
-    "prepublishOnly": "npm run build && npm test"
+    "test:benchmark": "node --disable-warning=ExperimentalWarning test/http-parser-benchmark.ts",
+    "test:load": "node --disable-warning=ExperimentalWarning test/http-parser-load.ts",
+    "prepublishOnly": "pnpm run build"
   },
   "keywords": [
     "http",
@@ -49,9 +57,8 @@
     "node": ">=24.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "@types/node": "^20.0.0"
-  },
-  "peerDependencies": {},
-  "dependencies": {}
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.25.5",
+    "typescript": "^5.0.0"
+  }
 }

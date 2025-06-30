@@ -3,14 +3,10 @@ import assert from 'node:assert/strict';
 
 import type { RequestMetadata, ResponseMetadata } from './http-parser.ts';
 import {
-  parseHttpStream as parseHttpStreamWASM,
+  parseHttpStream,
   HTTP_REQUEST,
   HTTP_RESPONSE,
 } from './http-parser.ts';
-import { parseHttpStream as parseHttpStreamJs } from './http-parser-js.ts';
-
-// Allow switching between WASM and JS parser for testing
-const parseHttpStream = process.env.PARSER === 'JS' ? parseHttpStreamJs : parseHttpStreamWASM;
 
 function createReadableStream(
   data: string | Uint8Array,
