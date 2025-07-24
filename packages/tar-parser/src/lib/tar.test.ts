@@ -508,5 +508,6 @@ describe('tar-stream test cases', () => {
     await parseTar(response.body!.pipeThrough(new DecompressionStream('gzip')), async (entry) => {
       entries.push([entry.header]);
     });
+    assert.ok(entries.length > 1000);
   });
 });
