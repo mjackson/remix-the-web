@@ -1,3 +1,8 @@
+> [!WARNING]
+> **📦 This repository has moved!**  
+> Development continues at [remix-run/remix](https://github.com/remix-run/remix/tree/v3) in the `v3` branch.  
+> Please follow us there for the latest updates and contributions.
+
 This collection of packages empowers you to build modern web applications with maximum interoperability and portability, leveraging the power of web standards. Whether you're using [Remix](https://remix.run) or another framework, these tools are designed to seamlessly integrate into your workflow.
 
 This repository is laying the groundwork for the next major evolution of Remix.
@@ -7,6 +12,7 @@ This repository is laying the groundwork for the next major evolution of Remix.
 Our core philosophy is simple: **build on web standards, embrace single responsibility.**
 
 Each package in this repository:
+
 - Adheres to the [single-responsibility principle](https://en.wikipedia.org/wiki/Single-responsibility_principle).
 - Prioritizes web standards to ensure maximum interoperability and portability across JavaScript runtimes.
 - Augments standards unobtrusively where they are missing or incomplete, minimizing incompatibility risks.
