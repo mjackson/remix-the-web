@@ -1,6 +1,6 @@
 > [!WARNING]
 > **📦 This repository has moved!**  
-> Development continues at [remix-run/remix](https://github.com/remix-run/remix/tree/v3) in the `v3` branch.  
+> Development continues at [remix-run/remix](https://github.com/remix-run/remix).  
 > Please follow us there for the latest updates and contributions.
 
 This collection of packages empowers you to build modern web applications with maximum interoperability and portability, leveraging the power of web standards. Whether you're using [Remix](https://remix.run) or another framework, these tools are designed to seamlessly integrate into your workflow.
